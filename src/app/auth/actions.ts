@@ -49,10 +49,19 @@ export async function login(prevState: AuthState | null, formData: FormData): Pr
 export async function signup(prevState: AuthState | null, formData: FormData): Promise<AuthState> {
   const email = formData.get('email')?.toString().trim();
   const password = formData.get('password')?.toString().trim();
+  const staffPasscode = formData.get('staffPasscode')?.toString().trim();
   const fullName = formData.get('fullName')?.toString().trim() || 'Staf Kafe';
 
   if (!email || !password) {
     return { error: 'Email dan kata sandi wajib diisi.' };
+  }
+
+  // Verifikasi Kode Rahasia Staf Karyawan
+  const validPasscode = process.env.STAFF_SECRET_PASSCODE || 'KAFE2026';
+  if (!staffPasscode || staffPasscode !== validPasscode) {
+    return {
+      error: 'Kode Rahasia Karyawan tidak valid! Anda tidak memiliki izin mendaftar sebagai staf kafe.',
+    };
   }
 
   if (password.length < 6) {
@@ -66,6 +75,7 @@ export async function signup(prevState: AuthState | null, formData: FormData): P
     options: {
       data: {
         full_name: fullName,
+        role: 'staff',
       },
     },
   });

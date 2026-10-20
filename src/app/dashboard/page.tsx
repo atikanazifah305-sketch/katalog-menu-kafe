@@ -32,6 +32,12 @@ export default async function StaffDashboardPage() {
     redirect('/login');
   }
 
+  // 2. Verifikasi Hak Akses / Role Karyawan (Proteksi Tambahan)
+  const role = user.user_metadata?.role;
+  if (role && role !== 'staff') {
+    redirect('/?error=unauthorized');
+  }
+
   let menuItems: MenuItem[] = [];
   let fetchError: string | null = null;
 

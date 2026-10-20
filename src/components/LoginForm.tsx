@@ -13,7 +13,8 @@ import {
   EyeOff, 
   CheckCircle2, 
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  KeyRound
 } from 'lucide-react';
 
 export default function LoginForm() {
@@ -103,21 +104,48 @@ export default function LoginForm() {
       <form action={handleFormSubmit} className="space-y-4">
         {/* Nama Lengkap (Khusus Register) */}
         {tab === 'register' && (
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-              Nama Lengkap
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-              <input
-                type="text"
-                name="fullName"
-                required
-                placeholder="Contoh: Barista Andi"
-                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
-              />
+          <>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                Nama Lengkap
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  name="fullName"
+                  required
+                  placeholder="Contoh: Barista Andi"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                />
+              </div>
             </div>
-          </div>
+
+            {/* Kode Rahasia Staf Karyawan (Proteksi Akses) */}
+            <div className="p-3.5 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-2xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                  Kode Rahasia Staf <span className="text-red-500">*</span>
+                </label>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
+                  Khusus Karyawan
+                </span>
+              </div>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 absolute left-3.5 top-3 text-amber-500" />
+                <input
+                  type="password"
+                  name="staffPasscode"
+                  required
+                  placeholder="Masukkan kode rahasia staf"
+                  className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                />
+              </div>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-tight">
+                🔒 Pelanggan umum dilarang mendaftar. Hubungi manajer kafe untuk mendapatkan kode.
+              </p>
+            </div>
+          </>
         )}
 
         {/* Email */}
