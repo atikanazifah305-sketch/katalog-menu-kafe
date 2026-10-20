@@ -7,6 +7,7 @@ import StaffOrdersManager from '@/components/StaffOrdersManager';
 import { getAllOrders } from '@/lib/ordersStore';
 import { mergeStockWithMenuItems } from '@/lib/stockStore';
 import { signout } from '@/app/auth/actions';
+import TableQrGenerator from '@/components/TableQrGenerator';
 import Link from 'next/link';
 import { 
   Coffee, 
@@ -246,6 +247,11 @@ export default async function StaffDashboardPage() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Generator & Cetak QR Code Meja Kafe (Self-Order) */}
+        <section>
+          <TableQrGenerator />
         </section>
 
         {/* Panel Pesanan Masuk & Verifikasi Kasir (Real-Time) */}

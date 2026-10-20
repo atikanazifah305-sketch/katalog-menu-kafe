@@ -71,6 +71,7 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
   const [tableNumber, setTableNumber] = useState('Meja 01');
   const [customerName, setCustomerName] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('cash');
+  const [isTableFromQr, setIsTableFromQr] = useState(false);
 
   // State Modal Pembayaran / Detail Struk
   const [activeOrder, setActiveOrder] = useState<OrderRecord | null>(null);
@@ -83,6 +84,25 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
       localStorage.removeItem('cafe_customer_orders');
     } catch {
       // ignore
+    }
+  }, []);
+
+  // Deteksi nomor meja otomatis dari URL parameter (?meja=... atau ?table=...) saat pelanggan scan QR Code meja
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const rawMeja = params.get('meja') || params.get('table');
+      if (rawMeja) {
+        const decoded = decodeURIComponent(rawMeja).trim();
+        let formatted = decoded;
+        const numMatch = decoded.match(/\d+/);
+        if (numMatch && !decoded.toLowerCase().includes('bar') && !decoded.toLowerCase().includes('takeaway')) {
+          const num = parseInt(numMatch[0], 10);
+          formatted = `Meja ${num < 10 ? '0' + num : num}`;
+        }
+        setTableNumber(formatted);
+        setIsTableFromQr(true);
+      }
     }
   }, []);
 
@@ -246,6 +266,21 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
 
   return (
     <div className="space-y-6">
+      {/* Banner Meja Terdeteksi Otomatis dari QR Code */}
+      {isTableFromQr && (
+        <div className="flex items-center justify-between gap-3 p-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span>
+              Anda terhubung dari <strong className="font-extrabold underline">{tableNumber}</strong> &bull; Pesanan akan diantar langsung ke meja Anda.
+            </span>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shrink-0">
+            Meja Terkunci
+          </span>
+        </div>
+      )}
+
       {/* Category Pills, Riwayat Pesanan Button, & Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         {/* Category Tabs */}
@@ -446,14 +481,18 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                     onChange={(e) => setTableNumber(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
                   >
-                    <option value="Meja 01">Meja 01</option>
-                    <option value="Meja 02">Meja 02</option>
-                    <option value="Meja 03">Meja 03</option>
-                    <option value="Meja 04">Meja 04</option>
-                    <option value="Meja 05">Meja 05</option>
-                    <option value="Meja 06">Meja 06</option>
-                    <option value="Meja 07">Meja 07</option>
-                    <option value="Meja 08">Meja 08</option>
+                    {Array.from({ length: 20 }, (_, i) => {
+                      const num = i + 1;
+                      const val = `Meja ${num < 10 ? '0' + num : num}`;
+                      return (
+                        <option key={val} value={val}>
+                          {val}
+                        </option>
+                      );
+                    })}
+                    {!Array.from({ length: 20 }, (_, i) => `Meja ${i + 1 < 10 ? '0' + (i + 1) : i + 1}`).concat(['Area Bar', 'Takeaway / Bawa Pulang']).includes(tableNumber) && (
+                      <option value={tableNumber}>{tableNumber}</option>
+                    )}
                     <option value="Area Bar">Area Bar / Depan</option>
                     <option value="Takeaway / Bawa Pulang">Takeaway (Bawa Pulang)</option>
                   </select>
