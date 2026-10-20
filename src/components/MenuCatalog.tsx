@@ -88,6 +88,41 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
     }
   };
 
+  // Helper status stok dinamis:
+  // 🟢 Hijau (Emerald): Stok aman (> 5 porsi)
+  // 🟡 Kuning (Amber): Stok menipis (1 – 5 porsi)
+  // 🔴 Merah (Rose): Stok habis (0 porsi)
+  const getStockBadgeInfo = (stock: number) => {
+    if (stock > 5) {
+      return {
+        label: 'Stok Aman',
+        countText: `${stock} porsi`,
+        badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+        dotClass: 'bg-emerald-500',
+        dotPulse: false,
+        icon: '🟢',
+      };
+    } else if (stock >= 1) {
+      return {
+        label: 'Stok Menipis',
+        countText: `${stock} porsi`,
+        badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+        dotClass: 'bg-amber-500',
+        dotPulse: true,
+        icon: '🟡',
+      };
+    } else {
+      return {
+        label: 'Stok Habis',
+        countText: '0 porsi (Habis)',
+        badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+        dotClass: 'bg-rose-500',
+        dotPulse: false,
+        icon: '🔴',
+      };
+    }
+  };
+
   // Handler toggle status ketersediaan (dengan Optimistic Update instan)
   const handleToggleStatus = (item: MenuItem) => {
     const nextStatus = !item.is_ready;
@@ -231,6 +266,29 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
         </div>
       </div>
 
+      {/* Indikator Status Stok Legend */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 text-xs shadow-xs">
+        <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+          <Box className="w-3.5 h-3.5 text-amber-500" />
+          Status Stok:
+        </span>
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 font-semibold">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span>🟢 Stok Aman (&gt; 5 porsi)</span>
+        </div>
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25 font-semibold">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+          </span>
+          <span>🟡 Stok Menipis (1 – 5 porsi)</span>
+        </div>
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/25 font-semibold">
+          <span className="w-2 h-2 rounded-full bg-rose-500" />
+          <span>🔴 Stok Habis (0 porsi)</span>
+        </div>
+      </div>
+
       {/* Konten Menu */}
       {filteredItems.length === 0 ? (
         <div className="py-16 px-6 text-center bg-white/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
@@ -252,14 +310,17 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
           {filteredItems.map((item) => {
             const isProcessing = pendingActionId === item.id;
             const itemStock = typeof item.stock === 'number' ? item.stock : (item.is_ready ? 20 : 0);
+            const stockInfo = getStockBadgeInfo(itemStock);
 
             return (
               <div
                 key={item.id}
                 className={`group relative flex flex-col justify-between bg-white dark:bg-slate-900 border rounded-2xl p-5 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 ${
-                  item.is_ready
-                    ? 'border-slate-200/80 dark:border-slate-800 shadow-sm'
-                    : 'border-rose-200/50 dark:border-rose-950/40 bg-slate-50/50 dark:bg-slate-900/50 opacity-90'
+                  itemStock === 0
+                    ? 'border-rose-300/80 dark:border-rose-950/70 bg-rose-50/15 dark:bg-slate-900/70'
+                    : itemStock <= 5
+                    ? 'border-amber-300/80 dark:border-amber-950/70 bg-amber-50/15 dark:bg-slate-900/70'
+                    : 'border-slate-200/80 dark:border-slate-800 shadow-sm'
                 }`}
               >
                 <div>
@@ -280,19 +341,19 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                       disabled={isProcessing}
                       title="Klik untuk mengubah status ketersediaan"
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition active:scale-95 cursor-pointer ${
-                        item.is_ready
+                        item.is_ready && itemStock > 0
                           ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30'
                           : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 hover:bg-rose-500/25 border border-rose-500/30'
                       }`}
                     >
                       {isProcessing ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : item.is_ready ? (
+                      ) : item.is_ready && itemStock > 0 ? (
                         <CheckCircle className="w-3 h-3 text-emerald-500" />
                       ) : (
                         <XCircle className="w-3 h-3 text-rose-500" />
                       )}
-                      <span>{item.is_ready ? 'Ready' : 'Habis'}</span>
+                      <span>{item.is_ready && itemStock > 0 ? 'Ready' : 'Habis'}</span>
                     </button>
                   </div>
 
@@ -306,41 +367,57 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                     {formatRupiah(item.price)}
                   </div>
 
-                  {/* Panel Stok Interaktif dengan Stepper +/- dan angka pasti */}
-                  <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-                      <Box className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span className="font-semibold text-slate-500 dark:text-slate-400">Stok:</span>
+                  {/* Panel Stok Interaktif dengan Badge Warna Dinamis Sesuai Aturan */}
+                  <div className="p-3 bg-slate-50/90 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2.5">
+                    {/* Baris Status & Jumlah Stok */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="relative flex h-2.5 w-2.5">
+                          {stockInfo.dotPulse && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                          )}
+                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${stockInfo.dotClass}`} />
+                        </span>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          {stockInfo.label}
+                        </span>
+                      </div>
+
+                      {/* Badge Dinamis: 🟢 >5 | 🟡 1-5 | 🔴 0 */}
                       <span
-                        className={`font-bold px-2 py-0.5 rounded-lg text-xs ${
-                          itemStock > 5
-                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                            : itemStock > 0
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
-                            : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30'
-                        }`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${stockInfo.badgeClass}`}
                       >
-                        {itemStock} porsi
+                        <Box className="w-3 h-3" />
+                        <span>{stockInfo.countText}</span>
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleQuickStock(item, -1)}
-                        disabled={isProcessing || itemStock <= 0}
-                        title="Kurangi stok 1 porsi"
-                        className="p-1 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 disabled:opacity-30 transition cursor-pointer"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleQuickStock(item, 1)}
-                        disabled={isProcessing}
-                        title="Tambah stok 1 porsi"
-                        className="p-1 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 disabled:opacity-30 transition cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                    {/* Stepper Cepat Ubah Stok (+ / -) */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        Ubah Stok:
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleQuickStock(item, -1)}
+                          disabled={isProcessing || itemStock <= 0}
+                          title="Kurangi stok 1 porsi"
+                          className="flex items-center justify-center w-7 h-7 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 active:scale-95 disabled:opacity-30 transition cursor-pointer"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-xs font-extrabold min-w-8 text-center text-slate-800 dark:text-slate-100">
+                          {itemStock}
+                        </span>
+                        <button
+                          onClick={() => handleQuickStock(item, 1)}
+                          disabled={isProcessing}
+                          title="Tambah stok 1 porsi"
+                          className="flex items-center justify-center w-7 h-7 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 active:scale-95 disabled:opacity-30 transition cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -387,6 +464,7 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                 {filteredItems.map((item) => {
                   const isProcessing = pendingActionId === item.id;
                   const itemStock = typeof item.stock === 'number' ? item.stock : (item.is_ready ? 20 : 0);
+                  const stockInfo = getStockBadgeInfo(itemStock);
 
                   return (
                     <tr
@@ -410,34 +488,38 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                         {formatRupiah(item.price)}
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="inline-flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                          <button
-                            onClick={() => handleQuickStock(item, -1)}
-                            disabled={isProcessing || itemStock <= 0}
-                            className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
-                            title="Kurang 1 porsi"
-                          >
-                            <Minus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                          </button>
+                        <div className="inline-flex items-center gap-2.5">
                           <span
-                            className={`text-xs font-bold min-w-16 text-center px-2 py-0.5 rounded-md ${
-                              itemStock > 5
-                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-                                : itemStock > 0
-                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                                : 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
-                            }`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${stockInfo.badgeClass}`}
                           >
-                            {itemStock} porsi
+                            <span className="relative flex h-2 w-2">
+                              {stockInfo.dotPulse && (
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                              )}
+                              <span className={`relative inline-flex rounded-full h-2 w-2 ${stockInfo.dotClass}`} />
+                            </span>
+                            <span>{itemStock} porsi</span>
+                            <span className="text-[10px] font-semibold opacity-75">({stockInfo.label})</span>
                           </span>
-                          <button
-                            onClick={() => handleQuickStock(item, 1)}
-                            disabled={isProcessing}
-                            className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
-                            title="Tambah 1 porsi"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                          </button>
+
+                          <div className="inline-flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <button
+                              onClick={() => handleQuickStock(item, -1)}
+                              disabled={isProcessing || itemStock <= 0}
+                              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
+                              title="Kurang 1 porsi"
+                            >
+                              <Minus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                            </button>
+                            <button
+                              onClick={() => handleQuickStock(item, 1)}
+                              disabled={isProcessing}
+                              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
+                              title="Tambah 1 porsi"
+                            >
+                              <Plus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                            </button>
+                          </div>
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-center">
@@ -446,19 +528,19 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                           disabled={isProcessing}
                           title="Klik untuk mengubah status"
                           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition active:scale-95 cursor-pointer ${
-                            item.is_ready
+                            item.is_ready && itemStock > 0
                               ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30'
                               : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 hover:bg-rose-500/25 border border-rose-500/30'
                           }`}
                         >
                           {isProcessing ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : item.is_ready ? (
+                          ) : item.is_ready && itemStock > 0 ? (
                             <CheckCircle className="w-3 h-3 text-emerald-500" />
                           ) : (
                             <XCircle className="w-3 h-3 text-rose-500" />
                           )}
-                          <span>{item.is_ready ? 'Ready' : 'Habis'}</span>
+                          <span>{item.is_ready && itemStock > 0 ? 'Ready' : 'Habis'}</span>
                         </button>
                       </td>
                       <td className="py-3.5 px-4 text-right">
