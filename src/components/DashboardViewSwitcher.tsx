@@ -48,7 +48,7 @@ export default function DashboardViewSwitcher({
 }: DashboardViewSwitcherProps) {
   const router = useRouter();
   const [mode, setMode] = useState<DashboardMode>('kasir');
-  const [kasirSubTab, setKasirSubTab] = useState<KasirSubTab>('pos');
+  const [kasirSubTab, setKasirSubTab] = useState<KasirSubTab>('antrean');
   const [mounted, setMounted] = useState(false);
 
   // Muat preferensi mode staf dari localStorage jika ada
@@ -234,19 +234,6 @@ export default function DashboardViewSwitcher({
               <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
                 <button
                   type="button"
-                  onClick={() => setKasirSubTab('pos')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    kasirSubTab === 'pos'
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <Receipt className="w-4 h-4" />
-                  <span>Mesin Kasir (POS)</span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setKasirSubTab('antrean')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer relative ${
                     kasirSubTab === 'antrean'
@@ -255,12 +242,30 @@ export default function DashboardViewSwitcher({
                   }`}
                 >
                   <Clock className="w-4 h-4" />
-                  <span>Antrean Meja Pelanggan</span>
+                  <span>Kasir Meja (Pesanan QR)</span>
                   {pendingVerificationOrders > 0 && (
                     <span className="px-1.5 py-0.2 text-[10px] bg-red-500 text-white rounded-full animate-pulse font-black">
                       {pendingVerificationOrders}
                     </span>
                   )}
+                  {pendingCashOrders > 0 && (
+                    <span className="px-1.5 py-0.2 text-[10px] bg-blue-500 text-white rounded-full font-black">
+                      {pendingCashOrders} Tunai
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setKasirSubTab('pos')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    kasirSubTab === 'pos'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Receipt className="w-4 h-4" />
+                  <span>Kasir Manual (Walk-in / Tanpa HP)</span>
                 </button>
 
                 <button
