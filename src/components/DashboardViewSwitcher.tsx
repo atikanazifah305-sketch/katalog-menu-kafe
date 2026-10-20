@@ -39,7 +39,10 @@ import {
   Zap,
   BarChart3,
   Store,
-  Flame
+  Flame,
+  Lock,
+  Unlock,
+  KeyRound
 } from 'lucide-react';
 
 export type DashboardMode = 'kasir' | 'admin' | 'semua';
@@ -65,6 +68,13 @@ export default function DashboardViewSwitcher({
   const [isRestocking, setIsRestocking] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // State Keamanan PIN Otorisasi Admin Toko
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pendingMode, setPendingMode] = useState<DashboardMode | null>(null);
+
   const handleBatchRestock = async () => {
     if (!window.confirm('Isi ulang +20 porsi untuk semua menu yang habis / stok menipis?')) return;
     setIsRestocking(true);
@@ -83,12 +93,28 @@ export default function DashboardViewSwitcher({
     }
   };
 
-  // Muat preferensi mode staf dari localStorage jika ada
+  // Cek apakah admin sudah di-unlock di sesi ini
   useEffect(() => {
     setMounted(true);
+    let unlocked = false;
+    try {
+      unlocked = sessionStorage.getItem('cafe_admin_unlocked') === 'true';
+    } catch {
+      // ignore
+    }
+    if (unlocked) {
+      setIsAdminUnlocked(true);
+    }
+
     const saved = localStorage.getItem('cafe_staff_dashboard_mode') as DashboardMode | null;
-    if (saved && (saved === 'kasir' || saved === 'admin' || saved === 'semua')) {
-      setMode(saved);
+    if (saved === 'admin' || saved === 'semua') {
+      if (unlocked) {
+        setMode(saved);
+      } else {
+        setMode('kasir'); // Default aman ke kasir jika belum memasukkan PIN Admin
+      }
+    } else if (saved === 'kasir') {
+      setMode('kasir');
     }
   }, []);
 
@@ -99,6 +125,57 @@ export default function DashboardViewSwitcher({
     } catch {
       // Abaikan jika quota / restricted
     }
+  };
+
+  // Handler klik tombol ganti mode dengan proteksi PIN Admin
+  const handleModeClick = (targetMode: DashboardMode) => {
+    if (targetMode === 'kasir') {
+      // Mode kasir selalu terbuka untuk semua staf
+      handleModeChange('kasir');
+      return;
+    }
+
+    // Jika ingin beralih ke Mode Admin Toko atau Semua Fitur
+    if (isAdminUnlocked) {
+      handleModeChange(targetMode);
+    } else {
+      setPendingMode(targetMode);
+      setPinInput('');
+      setPinError(null);
+      setIsPinModalOpen(true);
+    }
+  };
+
+  // Handler verifikasi PIN
+  const handlePinSubmit = (pinToTest?: string) => {
+    const candidate = (pinToTest !== undefined ? pinToTest : pinInput).trim();
+    const validPin = (settings.adminPin || '2026').trim();
+
+    if (candidate === validPin) {
+      setIsAdminUnlocked(true);
+      setIsPinModalOpen(false);
+      setPinError(null);
+      try {
+        sessionStorage.setItem('cafe_admin_unlocked', 'true');
+      } catch {
+        // ignore
+      }
+      handleModeChange(pendingMode || 'admin');
+    } else {
+      setPinError('PIN Salah! Hanya Manager / Admin yang memiliki akses.');
+      setPinInput('');
+    }
+  };
+
+  // Handler kunci kembali Mode Admin
+  const handleLockAdmin = () => {
+    setIsAdminUnlocked(false);
+    try {
+      sessionStorage.removeItem('cafe_admin_unlocked');
+    } catch {
+      // ignore
+    }
+    handleModeChange('kasir');
   };
 
   // Statistik Menu & Stok
@@ -162,7 +239,7 @@ export default function DashboardViewSwitcher({
       {/* Tombol Pengalih Mode (Mode Kasir vs Mode Admin Toko vs Semua Fitur) */}
       <section className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">
               Mode Tampilan:
             </span>
@@ -177,15 +254,28 @@ export default function DashboardViewSwitcher({
               {mode === 'admin' && '🟡 Aktif: Mode Admin Toko'}
               {mode === 'semua' && '🔵 Aktif: Semua Fitur'}
             </span>
+
+            {/* Tombol Kunci Admin (Tampil jika Admin sedang terbuka) */}
+            {isAdminUnlocked && (
+              <button
+                type="button"
+                onClick={handleLockAdmin}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition cursor-pointer"
+                title="Kunci kembali Mode Admin agar kasir tidak dapat mengubah data"
+              >
+                <Lock className="w-3 h-3" />
+                <span>Kunci Admin</span>
+              </button>
+            )}
           </div>
 
           {/* Segmented Control Switcher */}
           <div className="grid grid-cols-3 p-1 bg-slate-100/90 dark:bg-slate-800/90 rounded-xl border border-slate-200/80 dark:border-slate-700/60 text-xs font-bold sm:w-auto w-full gap-1">
-            {/* Tombol Mode Kasir */}
+            {/* Tombol Mode Kasir (Selalu Terbuka) */}
             <button
               id="btn-mode-kasir"
               type="button"
-              onClick={() => handleModeChange('kasir')}
+              onClick={() => handleModeClick('kasir')}
               className={`flex items-center justify-center gap-1.5 py-2 px-3 sm:px-4 rounded-lg transition-all cursor-pointer ${
                 mode === 'kasir'
                   ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-extrabold'
@@ -201,33 +291,41 @@ export default function DashboardViewSwitcher({
               )}
             </button>
 
-            {/* Tombol Mode Admin Toko */}
+            {/* Tombol Mode Admin Toko (Diproteksi PIN) */}
             <button
               id="btn-mode-admin"
               type="button"
-              onClick={() => handleModeChange('admin')}
+              onClick={() => handleModeClick('admin')}
               className={`flex items-center justify-center gap-1.5 py-2 px-3 sm:px-4 rounded-lg transition-all cursor-pointer ${
                 mode === 'admin'
                   ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Settings className="w-4 h-4" />
+              {isAdminUnlocked ? (
+                <Unlock className="w-3.5 h-3.5 text-emerald-500" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-amber-500" />
+              )}
               <span>Admin Toko</span>
             </button>
 
-            {/* Tombol Semua Fitur */}
+            {/* Tombol Semua Fitur (Diproteksi PIN) */}
             <button
               id="btn-mode-semua"
               type="button"
-              onClick={() => handleModeChange('semua')}
+              onClick={() => handleModeClick('semua')}
               className={`flex items-center justify-center gap-1.5 py-2 px-3 sm:px-4 rounded-lg transition-all cursor-pointer ${
                 mode === 'semua'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <LayoutGrid className="w-4 h-4" />
+              {isAdminUnlocked ? (
+                <LayoutGrid className="w-4 h-4" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-indigo-400" />
+              )}
               <span>Semua</span>
             </button>
           </div>
@@ -784,6 +882,135 @@ export default function DashboardViewSwitcher({
               <TableQrGenerator />
             </section>
           )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL OTORISASI PIN ADMIN TOKO (Proteksi Kasir vs Admin)
+          ========================================================================= */}
+      {isPinModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => {
+            setIsPinModalOpen(false);
+            setPinInput('');
+            setPinError(null);
+          }}
+        >
+          <div
+            className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 text-center space-y-4 shadow-2xl animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Icon Header */}
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs">
+              <Lock className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                Otorisasi Admin Toko
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Mode Admin memuat analisis omzet, ubah harga, dan pengaturan kafe. Masukkan PIN Admin untuk melanjutkan:
+              </p>
+            </div>
+
+            {/* Notifikasi Error jika PIN Salah */}
+            {pinError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 animate-shake">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{pinError}</span>
+              </div>
+            )}
+
+            {/* Input Tersembunyi untuk Keyboard Fisik */}
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              autoFocus
+              value={pinInput}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                setPinInput(val);
+                setPinError(null);
+                const valid = (settings.adminPin || '2026').trim();
+                if (val === valid) {
+                  handlePinSubmit(val);
+                }
+              }}
+              className="sr-only"
+            />
+
+            {/* Indikator Visual Titik-Titik PIN */}
+            <div className="flex items-center justify-center gap-3 py-2">
+              {[0, 1, 2, 3].map((idx) => (
+                <div
+                  key={idx}
+                  className={`w-4 h-4 rounded-full transition-all duration-200 ${
+                    pinInput.length > idx
+                      ? 'bg-amber-600 scale-110 shadow-sm shadow-amber-600/40 ring-4 ring-amber-500/20'
+                      : 'bg-slate-200 dark:bg-slate-800'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Touch Numpad (Sangat Nyaman di Layar Sentuh Tablet Kasir) */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((btn) => (
+                <button
+                  key={btn}
+                  type="button"
+                  onClick={() => {
+                    setPinError(null);
+                    if (btn === 'C') {
+                      setPinInput('');
+                    } else if (btn === '⌫') {
+                      setPinInput((prev) => prev.slice(0, -1));
+                    } else {
+                      if (pinInput.length < 6) {
+                        const next = pinInput + btn;
+                        setPinInput(next);
+                        const valid = (settings.adminPin || '2026').trim();
+                        if (next === valid) {
+                          handlePinSubmit(next);
+                        }
+                      }
+                    }
+                  }}
+                  className={`h-12 rounded-2xl font-extrabold text-base transition active:scale-95 cursor-pointer ${
+                    btn === 'C'
+                      ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60'
+                      : btn === '⌫'
+                      ? 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      : 'text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white shadow-xs'
+                  }`}
+                >
+                  {btn}
+                </button>
+              ))}
+            </div>
+
+            {/* Tombol Aksi Batal */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPinModalOpen(false);
+                  setPinInput('');
+                  setPinError(null);
+                }}
+                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Batal (Tetap di Mode Kasir)
+              </button>
+            </div>
+
+            <p className="text-[10px] text-slate-400 pt-1">
+              Default PIN: <strong className="font-mono text-slate-600 dark:text-slate-300">2026</strong> (Dapat diubah di Tab Pengaturan Kafe)
+            </p>
+          </div>
         </div>
       )}
     </div>

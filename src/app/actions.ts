@@ -427,7 +427,7 @@ export async function updateCafeSettingsAction(settings: Partial<CafeSettings>):
 
   try {
     const supabase = await createClient();
-    const { error } = await supabase.from('cafe_settings').upsert({
+    const payload: Record<string, unknown> = {
       id: 'default',
       cafe_name: updated.cafeName,
       address: updated.address,
@@ -440,8 +440,18 @@ export async function updateCafeSettingsAction(settings: Partial<CafeSettings>):
       promo_banner_text: updated.promoBannerText,
       tax_percent: updated.taxPercent,
       service_charge_percent: updated.serviceChargePercent,
+      admin_pin: updated.adminPin || '2026',
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    let { error } = await supabase.from('cafe_settings').upsert(payload);
+
+    // Fallback jika kolom admin_pin belum ditambahkan di database
+    if (error && (error.code === 'PGRST204' || error.message?.includes('admin_pin'))) {
+      delete payload.admin_pin;
+      const retry = await supabase.from('cafe_settings').upsert(payload);
+      error = retry.error;
+    }
 
     if (error) {
       console.warn('Gagal sync cafe_settings ke Supabase:', error.message);

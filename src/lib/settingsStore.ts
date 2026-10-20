@@ -95,6 +95,7 @@ export async function getCafeSettingsAsync(): Promise<CafeSettings> {
         promoBannerText: data.promo_banner_text || DEFAULT_SETTINGS.promoBannerText,
         taxPercent: Number(data.tax_percent || 0),
         serviceChargePercent: Number(data.service_charge_percent || 0),
+        adminPin: data.admin_pin || DEFAULT_SETTINGS.adminPin,
       };
       memorySettings = dbSettings;
       saveCafeSettings(dbSettings);

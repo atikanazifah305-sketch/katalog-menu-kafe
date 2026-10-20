@@ -16,7 +16,9 @@ import {
   Percent, 
   Power,
   Sparkles,
-  Loader2
+  Loader2,
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react';
 
 interface AdminStoreSettingsProps {
@@ -318,6 +320,41 @@ export default function AdminStoreSettings({
               />
               <span className="text-[10px] text-slate-400 mt-1 block">Set 0% jika bebas service charge</span>
             </div>
+          </div>
+        </div>
+
+        {/* PIN Keamanan Mode Admin */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+              <KeyRound className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-white">
+                PIN Keamanan Otorisasi Admin Toko
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                PIN ini wajib dimasukkan oleh kasir jika ingin membuka Mode Admin Toko atau mengubah pengaturan kafe.
+              </p>
+            </div>
+          </div>
+
+          <div className="max-w-xs space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+              PIN Admin Toko (4-6 digit angka)
+            </label>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={settings.adminPin || '2026'}
+              onChange={(e) => setSettings({ ...settings, adminPin: e.target.value.replace(/\D/g, '') })}
+              placeholder="2026"
+              className="w-full px-3.5 py-2.5 text-sm tracking-widest font-mono font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+            />
+            <span className="text-[10px] text-slate-400 block">
+              Default: <strong>2026</strong>. Hanya berikan PIN ini kepada Owner / Store Manager.
+            </span>
           </div>
         </div>
       </div>

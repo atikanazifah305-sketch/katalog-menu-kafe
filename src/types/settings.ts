@@ -10,6 +10,7 @@ export interface CafeSettings {
   promoBannerText: string;
   taxPercent: number;
   serviceChargePercent: number;
+  adminPin: string;
 }
 
 export const DEFAULT_SETTINGS: CafeSettings = {
@@ -24,4 +25,5 @@ export const DEFAULT_SETTINGS: CafeSettings = {
   promoBannerText: '✨ Promo Spesial: Dapatkan diskon 10% untuk pesanan Dine-In hari ini!',
   taxPercent: 0,
   serviceChargePercent: 0,
+  adminPin: '2026',
 };
