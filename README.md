@@ -1,83 +1,83 @@
-# 📦 InventarisPro - Sistem Manajemen Stok & Inventaris Modern
+# ☕ Katalog Menu Kafe & Sistem Pemesanan Meja Mandiri
 
-Aplikasi manajemen inventaris barang lengkap, responsif, dan elegan yang dibangun menggunakan **Next.js (App Router)** dan terintegrasi dengan **Supabase** (Database PostgreSQL & Otentikasi Pengguna).
+Aplikasi web modern untuk katalog menu kafe dan pemesanan mandiri dari meja (*table ordering*) yang dibangun menggunakan **Next.js (App Router)**, **TypeScript**, **Tailwind CSS**, dan terintegrasi dengan **Supabase** (Database PostgreSQL & Otentikasi Staf).
 
 ---
 
 ## ✨ Fitur Utama
 
-1. **🔐 Autentikasi Pengguna (Login & Registrasi)**:
-   - Terintegrasi dengan **Supabase Auth** (Email & Password).
-   - Dilengkapi **Mode Demo Cepat 1-Klik** untuk langsung menguji aplikasi tanpa konfigurasi awal.
-   - Profil pengguna di header dengan indikator status dan tombol logout.
+### 👥 1. Portal Pelanggan (Menu Digital & Pemesanan Meja)
+*Dapat diakses langsung di rute utama `/` tanpa perlu login.*
 
-2. **➕ Tambah Barang Baru**:
-   - Form input lengkap: Nama Barang, Kode SKU, Kategori, Stok Awal, Satuan (Pcs, Unit, Box, Rim, dll.), Harga Modal (Beli), Harga Jual, Batas Stok Minimum, Lokasi Rak/Gudang, dan Catatan.
-   - **Auto-Generate SKU Generator**: Tombol otomatis untuk membuat kode SKU unik dalam 1 klik.
+- **Katalog Menu Digital**:
+  - Filter kategori sajian: Kopi Panas/Dingin, Teh & Segar, Makanan Utama, Camilan & Pastry.
+  - Pencarian cepat instan nama dan kategori menu.
+  - Label ketersediaan menu (Tersedia / Habis) secara *real-time*.
+- **Pemesanan Mandiri per Meja**:
+  - Pilih meja (Meja 01 - Meja 08, Area Bar, atau Takeaway).
+  - Masukkan nama pemesan dan catatan khusus untuk setiap menu (misal: *less sugar, es dipisah*).
+  - Keranjang pesanan interaktif (+/- jumlah item dan kalkulasi harga otomatis).
+- **Pilihan Metode Pembayaran**:
+  - 💵 **Tunai / Cash (Bayar di Kasir)**:
+    - Menghasilkan struk pemesanan digital (`KF-XXXX`).
+    - Menampilkan detail pesanan untuk ditunjukkan ke meja kasir saat pembayaran tunai.
+    - Opsi kirim detail pesanan ke WhatsApp kasir.
+  - 📱 **QRIS Mandiri (Scan Langsung di Meja)**:
+    - Menampilkan kode QRIS standar nasional lengkap dengan nominal tagihan tepat.
+    - Pelanggan membayar mandiri lewat m-Banking / e-Wallet (BCA, GoPay, OVO, DANA, ShopeePay).
+    - Setelah konfirmasi pembayaran, pelanggan cukup duduk santai menunggu pesanan diantar ke meja tanpa perlu antre ke kasir.
+  - 🏦 **Transfer Bank (BCA & Mandiri)**:
+    - Menampilkan nomor rekening kafe resmi dengan fitur **Salin 1-Klik**.
+    - Konfirmasi mandiri dari meja, status pesanan otomatis berpindah ke *"Sedang Diracik"*.
+- **Riwayat Pesanan Pelanggan**:
+  - Drawer riwayat pesanan meja tersimpan di browser untuk memantau status atau mencetak ulang struk digital.
 
-3. **✏️ Edit Data Barang**:
-   - Perbarui informasi detail barang, harga, lokasi penyimpanan, maupun jumlah stok dengan modal interaktif.
+---
 
-4. **🗑️ Hapus Barang**:
-   - Konfirmasi dialog pengamanan sebelum penghapusan data secara permanen.
+### 🔒 2. Portal Manajemen Staf & Barista (`/dashboard`)
+*Dilindungi secara ketat dengan Supabase Auth & Passcode Keamanan Staf.*
 
-5. **📊 Lihat & Pantau Stok (Dashboard Real-Time)**:
-   - **Ringkasan KPI**:
-     - Total Jenis Barang (SKU terdaftar)
-     - Total Kuantitas Unit Stok fisik
-     - Estimasi Nilai Stok (Total Valuasi Rupiah)
-     - Peringatan Stok Menipis (≤ batas minimum)
-     - Peringatan Stok Habis (0 unit)
-   - **Quick Adjustment (+ / -)**: Tombol tambah atau kurangi stok langsung di baris tabel.
-   - **Status Badge Pintar**:
-     - 🟢 *Tersedia* (Stok aman di atas batas minimum)
-     - 🟡 *Menipis* (Stok di bawah atau sama dengan batas minimum)
-     - 🔴 *Habis* (Stok 0)
-
-6. **🔍 Pencarian & Filter Canggih**:
-   - Pencarian instan (Nama Barang, SKU, atau Lokasi).
-   - Filter Kategori cepat (Elektronik, ATK & Kantor, Perabotan, dsb).
-   - Filter Status Stok (Semua, Stok Aman, Menipis, Habis).
-   - Pengurutan data (Terbaru, Nama A-Z / Z-A, Stok Terbanyak / Tersedikit, Harga Tertinggi / Terendah).
-
-7. **📜 Riwayat Pergerakan Stok (Stock Logs)**:
-   - Mencatat otomatis setiap transaksi barang masuk (`IN`), barang keluar (`OUT`), atau penyesuaian stok manual lengkap dengan tanggal dan alasan.
-
-8. **📥 Ekspor Data ke CSV**:
-   - Unduh seluruh data inventaris ke format spreadsheet CSV dalam sekali klik.
+- **Keamanan Akun Staf**:
+  - Pelanggan biasa dicegah mendaftar ke portal staf berkat verifikasi **Kode Sandi Rahasia Staf** (`STAFF_SECRET_PASSCODE`).
+  - Halaman dashboard terlindungi di tingkat server (*Server-side authentication*).
+- **Manajemen Menu Lengkap (CRUD)**:
+  - Tambah menu baru dengan kategori, harga, dan kontrol stok.
+  - Edit detail sajian kapan saja melalui modal interaktif.
+  - Hapus menu dengan dialog konfirmasi.
+  - **Quick Stock Adjustment**: Tambah atau kurangi stok langsung dari tabel dengan 1-klik (`+` / `-`).
+  - **Toggle Ketersediaan**: Ubah status ketersediaan menu (*Ready* / *Habis*) dalam sekejap.
+- **Ringkasan Metrik**:
+  - Total sajian aktif, sajian siap disajikan, sajian habis/kritis, dan estimasi valuasi stok.
 
 ---
 
 ## 🚀 Panduan Memulai
 
-### 1. Menjalankan Aplikasi
-Aplikasi saat ini telah aktif di:
-```bash
-http://localhost:3001
-```
+### 1. Menjalankan Server Pengembangan Lokal
+Pastikan Node.js (v18+) sudah terinstal di komputer:
 
-Jika server dev perlu dijalankan ulang di kemudian hari:
 ```bash
+npm install
 npm run dev
 ```
 
-### 2. Konfigurasi Database Supabase
+Buka peramban di:
+- **Menu Pelanggan**: [http://localhost:3000](http://localhost:3000)
+- **Portal Staf**: [http://localhost:3000/login](http://localhost:3000/login) (atau [http://localhost:3000/dashboard](http://localhost:3000/dashboard))
 
-Aplikasi ini dapat langsung dicoba menggunakan **Mode Demo Lokal** bawaan. Untuk menghubungkannya ke database Supabase Anda sendiri:
+---
 
-#### Langkah A: Buat Tabel di Supabase
-1. Buka dashboard [Supabase](https://supabase.com) dan buat proyek baru.
-2. Buka menu **SQL Editor** di dashboard Supabase.
-3. Buka file [`supabase/schema.sql`](./supabase/schema.sql) di repositori ini, salin isinya dan klik **Run** di SQL Editor.
+### 2. Konfigurasi Lingkungan (`.env.local`)
 
-#### Langkah B: Hubungkan ke Aplikasi
-Anda dapat memilih salah satu cara berikut:
-- **Cara 1 (Langsung di UI)**: Klik pill **"Mode Demo / Supabase Live"** di navbar pojok kanan atas, lalu tempel *Project URL* dan *Anon API Key* Supabase Anda.
-- **Cara 2 (File .env.local)**: Buat file `.env.local` di folder root dan isi:
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-  ```
+Buat file `.env.local` pada direktori root dengan variabel berikut:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+STAFF_SECRET_PASSCODE=KAFE2026
+```
+
+> **Catatan**: `STAFF_SECRET_PASSCODE` digunakan untuk memverifikasi pendaftaran akun baru staf agar pelanggan biasa tidak dapat membuat akun di dashboard manajemen.
 
 ---
 
@@ -87,27 +87,36 @@ Anda dapat memilih salah satu cara berikut:
 INVENTARIS/
 ├── src/
 │   ├── app/
-│   │   ├── globals.css         # Token desain modern, dark mode, dan animasi
-│   │   ├── layout.tsx          # Root layout & metadata
-│   │   └── page.tsx            # Halaman Dashboard inventaris utama
+│   │   ├── actions.ts           # Server Actions CRUD menu (add, update, delete, toggle)
+│   │   ├── auth/
+│   │   │   └── actions.ts       # Server Actions Auth Staf (login, signup dengan passcode, signout)
+│   │   ├── dashboard/
+│   │   │   └── page.tsx         # Dashboard manajemen staf terlindungi
+│   │   ├── login/
+│   │   │   └── page.tsx         # Halaman login & register staf
+│   │   ├── globals.css          # Desain tema Tailwind & utilitas CSS
+│   │   ├── layout.tsx           # Root layout aplikasi
+│   │   └── page.tsx             # Halaman utama katalog menu pelanggan
 │   ├── components/
-│   │   ├── Navbar.tsx          # Navigasi atas, status Supabase, dan profil user
-│   │   ├── StatsCards.tsx      # Kartu indikator KPI stok dan nilai aset
-│   │   ├── InventoryControls.tsx # Search bar, filter kategori & status
-│   │   ├── InventoryTable.tsx  # Tabel inventaris interaktif & quick adjustment (+/-)
-│   │   ├── ItemModal.tsx       # Modal tambah & edit data barang
-│   │   ├── DeleteConfirmModal.tsx # Dialog konfirmasi hapus barang
-│   │   ├── AuthModal.tsx       # Modal masuk (login) & daftar akun
-│   │   ├── SupabaseConfigModal.tsx # Pengaturan koneksi Supabase di browser
-│   │   └── StockLogModal.tsx   # Modal riwayat transaksi mutasi stok
-│   ├── lib/
-│   │   ├── supabase.ts         # Inisialisasi client Supabase
-│   │   └── inventoryService.ts # Service CRUD barang, stok, dan auth
-│   └── types/
-│       └── inventory.ts        # TypeScript interfaces & types
+│   │   ├── CustomerMenu.tsx     # Komponen menu pelanggan, keranjang, checkout Cash/QRIS/TF, & struk
+│   │   ├── MenuCatalog.tsx      # Tabel manajemen menu staf (+/- stok, edit, hapus)
+│   │   ├── AddMenuForm.tsx      # Form tambah menu baru
+│   │   └── LoginForm.tsx        # Form login/register staf dengan proteksi passcode
+│   ├── types/
+│   │   └── menu.ts              # Definisi tipe MenuItem & kategori
+│   └── utils/
+│       └── supabase/
+│           ├── client.ts        # Client Supabase browser
+│           └── server.ts        # Client Supabase server dengan proteksi cookie
 ├── supabase/
-│   └── schema.sql              # Skrip SQL tabel items, stock_logs, dan RLS
+│   ├── schema.sql               # Skrip SQL tabel menu_items dan kebijakan RLS
+│   └── add_stock_column.sql     # Skrip migrasi kolom stock jika belum ada
 ├── .env.example
 ├── package.json
 └── README.md
 ```
+
+---
+
+## 🛠️ Lisensi
+Dilisensikan di bawah [MIT License](LICENSE).
