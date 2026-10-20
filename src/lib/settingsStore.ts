@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { createClient } from '@/utils/supabase/server';
 
 import { CafeSettings, DEFAULT_SETTINGS } from '@/types/settings';
 export type { CafeSettings };
@@ -68,3 +69,41 @@ export function saveCafeSettings(newSettings: Partial<CafeSettings>): CafeSettin
 
   return updated;
 }
+
+/**
+ * Mengambil pengaturan kafe dari Supabase jika tersedia (agar tersimpan permanen di cloud)
+ */
+export async function getCafeSettingsAsync(): Promise<CafeSettings> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('cafe_settings')
+      .select('*')
+      .eq('id', 'default')
+      .single();
+
+    if (!error && data) {
+      const dbSettings: CafeSettings = {
+        cafeName: data.cafe_name || DEFAULT_SETTINGS.cafeName,
+        address: data.address || DEFAULT_SETTINGS.address,
+        phone: data.phone || DEFAULT_SETTINGS.phone,
+        operatingHours: data.operating_hours || DEFAULT_SETTINGS.operatingHours,
+        wifiSsid: data.wifi_ssid || DEFAULT_SETTINGS.wifiSsid,
+        wifiPassword: data.wifi_password || DEFAULT_SETTINGS.wifiPassword,
+        isOpen: data.is_open ?? DEFAULT_SETTINGS.isOpen,
+        promoBannerActive: data.promo_banner_active ?? DEFAULT_SETTINGS.promoBannerActive,
+        promoBannerText: data.promo_banner_text || DEFAULT_SETTINGS.promoBannerText,
+        taxPercent: Number(data.tax_percent || 0),
+        serviceChargePercent: Number(data.service_charge_percent || 0),
+      };
+      memorySettings = dbSettings;
+      saveCafeSettings(dbSettings);
+      return dbSettings;
+    }
+  } catch (err) {
+    console.warn('Gagal membaca cafe_settings dari Supabase:', err);
+  }
+
+  return getCafeSettings();
+}
+

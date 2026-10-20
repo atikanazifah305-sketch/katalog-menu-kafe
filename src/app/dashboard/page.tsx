@@ -5,7 +5,7 @@ import DashboardViewSwitcher from '@/components/DashboardViewSwitcher';
 import { getAllOrders } from '@/lib/ordersStore';
 import { mergeStockWithMenuItems } from '@/lib/stockStore';
 import { signout } from '@/app/auth/actions';
-import { getCafeSettings } from '@/lib/settingsStore';
+import { getCafeSettings, getCafeSettingsAsync } from '@/lib/settingsStore';
 import Link from 'next/link';
 import { 
   Coffee, 
@@ -60,7 +60,7 @@ export default async function StaffDashboardPage() {
 
   const displayName = user.user_metadata?.full_name || 'Staf Karyawan';
   const initialOrders = await getAllOrders();
-  const initialSettings = getCafeSettings();
+  const initialSettings = await getCafeSettingsAsync();
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased pb-20 selection:bg-amber-500 selection:text-white">

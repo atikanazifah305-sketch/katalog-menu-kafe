@@ -75,7 +75,7 @@ export async function saveOrder(order: CafeOrder): Promise<CafeOrder> {
   // Coba simpan ke Supabase jika tabel 'orders' sudah ada
   try {
     const supabase = await createClient();
-    await supabase.from('orders').upsert({
+    const { error } = await supabase.from('orders').upsert({
       id: order.id,
       table_number: order.table_number,
       customer_name: order.customer_name,
@@ -86,8 +86,12 @@ export async function saveOrder(order: CafeOrder): Promise<CafeOrder> {
       created_at: order.created_at,
       updated_at: new Date().toISOString(),
     });
-  } catch {
-    // Fallback senyap jika tabel Supabase belum dibuat
+
+    if (error) {
+      console.warn('Perhatian: Gagal menyimpan ke tabel orders Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('Koneksi Supabase error saat simpan order:', err);
   }
 
   return order;
@@ -112,8 +116,8 @@ export async function getAllOrders(): Promise<CafeOrder[]> {
       saveOrdersToFile(memoryOrders);
       return memoryOrders;
     }
-  } catch {
-    // Abaikan jika Supabase orders belum ada
+  } catch (err) {
+    console.warn('Koneksi Supabase error saat ambil orders:', err);
   }
 
   return memoryOrders;

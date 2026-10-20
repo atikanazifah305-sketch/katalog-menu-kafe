@@ -10,7 +10,7 @@ import {
   updateOrderStatus 
 } from '@/lib/ordersStore';
 import { setItemStock, getItemStock, deleteItemStock, reduceItemStock } from '@/lib/stockStore';
-import { getCafeSettings, saveCafeSettings, CafeSettings } from '@/lib/settingsStore';
+import { getCafeSettings, getCafeSettingsAsync, saveCafeSettings, CafeSettings } from '@/lib/settingsStore';
 
 export interface ActionResult<T = unknown> {
   success: boolean;
@@ -416,7 +416,7 @@ export async function createPosOrderAction(order: CafeOrder): Promise<{ success:
  * Mengambil pengaturan kafe (nama, wifi, promo banner, status buka)
  */
 export async function getCafeSettingsAction(): Promise<CafeSettings> {
-  return getCafeSettings();
+  return await getCafeSettingsAsync();
 }
 
 /**
@@ -424,6 +424,32 @@ export async function getCafeSettingsAction(): Promise<CafeSettings> {
  */
 export async function updateCafeSettingsAction(settings: Partial<CafeSettings>): Promise<{ success: boolean; settings: CafeSettings }> {
   const updated = saveCafeSettings(settings);
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from('cafe_settings').upsert({
+      id: 'default',
+      cafe_name: updated.cafeName,
+      address: updated.address,
+      phone: updated.phone,
+      operating_hours: updated.operatingHours,
+      wifi_ssid: updated.wifiSsid,
+      wifi_password: updated.wifiPassword,
+      is_open: updated.isOpen,
+      promo_banner_active: updated.promoBannerActive,
+      promo_banner_text: updated.promoBannerText,
+      tax_percent: updated.taxPercent,
+      service_charge_percent: updated.serviceChargePercent,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.warn('Gagal sync cafe_settings ke Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('Koneksi Supabase error saat simpan pengaturan:', err);
+  }
+
   revalidatePath('/');
   revalidatePath('/dashboard');
   return { success: true, settings: updated };

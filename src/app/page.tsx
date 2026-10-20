@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { MenuItem } from '@/types/menu';
 import { mergeStockWithMenuItems } from '@/lib/stockStore';
-import { getCafeSettings } from '@/lib/settingsStore';
+import { getCafeSettings, getCafeSettingsAsync } from '@/lib/settingsStore';
 import CustomerMenu from '@/components/CustomerMenu';
 import Link from 'next/link';
 import { 
@@ -55,7 +55,7 @@ export default async function CustomerHomePage() {
   const staffDisplayName = user?.user_metadata?.full_name || user?.email || 'Staf Kafe';
 
   // 3. Ambil pengaturan kafe dinamis (nama toko, jam operasional, wifi, promo banner)
-  const cafeSettings = getCafeSettings();
+  const cafeSettings = await getCafeSettingsAsync();
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased pb-28 selection:bg-amber-500 selection:text-white">
