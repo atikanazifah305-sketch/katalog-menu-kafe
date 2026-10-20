@@ -10,6 +10,7 @@ import {
   updateOrderStatus 
 } from '@/lib/ordersStore';
 import { setItemStock, getItemStock, deleteItemStock, reduceItemStock } from '@/lib/stockStore';
+import { getCafeSettings, saveCafeSettings, CafeSettings } from '@/lib/settingsStore';
 
 export interface ActionResult<T = unknown> {
   success: boolean;
@@ -408,5 +409,60 @@ export async function createPosOrderAction(order: CafeOrder): Promise<{ success:
       success: false,
       error: err instanceof Error ? err.message : 'Gagal memproses transaksi kasir.',
     };
+  }
+}
+
+/**
+ * Mengambil pengaturan kafe (nama, wifi, promo banner, status buka)
+ */
+export async function getCafeSettingsAction(): Promise<CafeSettings> {
+  return getCafeSettings();
+}
+
+/**
+ * Memperbarui pengaturan kafe
+ */
+export async function updateCafeSettingsAction(settings: Partial<CafeSettings>): Promise<{ success: boolean; settings: CafeSettings }> {
+  const updated = saveCafeSettings(settings);
+  revalidatePath('/');
+  revalidatePath('/dashboard');
+  return { success: true, settings: updated };
+}
+
+/**
+ * Restock Cepat Massal: Menambah stok pada semua menu yang habis / menipis (<= 5 porsi)
+ */
+export async function batchRestockLowStockAction(amount: number = 20): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: items } = await supabase.from('menu_items').select('id, name, stock, is_ready');
+
+    let count = 0;
+    if (items) {
+      for (const item of items) {
+        const curStock = getItemStock(item.id, item.is_ready);
+        if (curStock <= 5) {
+          const newStock = curStock + amount;
+          setItemStock(item.id, newStock);
+
+          try {
+            await supabase
+              .from('menu_items')
+              .update({ stock: newStock, is_ready: true })
+              .eq('id', item.id);
+          } catch {
+            // fallback
+          }
+          count++;
+        }
+      }
+    }
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    return { success: true, count };
+  } catch (err: unknown) {
+    console.error('Error in batchRestock:', err);
+    return { success: false, count: 0, error: err instanceof Error ? err.message : 'Gagal restock massal.' };
   }
 }

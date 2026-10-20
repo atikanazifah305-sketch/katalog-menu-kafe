@@ -38,6 +38,8 @@ import {
   checkOrderStatusAction 
 } from '@/app/actions';
 
+import type { CafeSettings } from '@/types/settings';
+
 interface CartItem {
   menuItem: MenuItem;
   quantity: number;
@@ -59,9 +61,10 @@ interface OrderRecord {
 
 interface CustomerMenuProps {
   initialItems: MenuItem[];
+  initialSettings?: CafeSettings;
 }
 
-export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
+export default function CustomerMenu({ initialItems, initialSettings }: CustomerMenuProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
 
@@ -211,12 +214,17 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
     );
   };
 
-  // Hitung Total Item & Harga
+  // Hitung Total Item & Harga (didukung kalkulasi Pajak & Service Charge jika diatur oleh Toko)
   const totalItemCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
-  const totalPrice = cart.reduce(
+  const subtotalPrice = cart.reduce(
     (acc, curr) => acc + curr.menuItem.price * curr.quantity,
     0
   );
+  const taxRate = initialSettings?.taxPercent || 0;
+  const serviceRate = initialSettings?.serviceChargePercent || 0;
+  const taxAmount = Math.round(subtotalPrice * (taxRate / 100));
+  const serviceAmount = Math.round(subtotalPrice * (serviceRate / 100));
+  const totalPrice = subtotalPrice + taxAmount + serviceAmount;
 
   // Handler Checkout / Buat Pesanan
   const handleCheckout = async () => {
@@ -278,6 +286,19 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shrink-0">
             Meja Terkunci
           </span>
+        </div>
+      )}
+
+      {/* Notifikasi Kafe Tutup jika diatur oleh Toko */}
+      {initialSettings && !initialSettings.isOpen && (
+        <div className="flex items-center gap-3 p-3.5 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs sm:text-sm animate-fade-in">
+          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+          <div>
+            <p className="font-bold">Kafe Sedang Tutup / Istirahat</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              Dapur saat ini sedang istirahat. Anda tetap dapat melihat menu, dan pesanan baru akan diproses saat kafe dibuka kembali.
+            </p>
+          </div>
         </div>
       )}
 
@@ -691,6 +712,27 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
 
             {/* Total Tagihan & Tombol Konfirmasi */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+              {(taxRate > 0 || serviceRate > 0) && (
+                <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400 pb-2 border-b border-dashed border-slate-200 dark:border-slate-800">
+                  <div className="flex justify-between">
+                    <span>Subtotal Pesanan</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{formatRupiah(subtotalPrice)}</span>
+                  </div>
+                  {taxRate > 0 && (
+                    <div className="flex justify-between">
+                      <span>Pajak Restoran (PB1 {taxRate}%)</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">+{formatRupiah(taxAmount)}</span>
+                    </div>
+                  )}
+                  {serviceRate > 0 && (
+                    <div className="flex justify-between">
+                      <span>Biaya Layanan ({serviceRate}%)</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">+{formatRupiah(serviceAmount)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-slate-500 dark:text-slate-400">Total Tagihan</span>
                 <span className="text-xl font-extrabold text-amber-600 dark:text-amber-400">

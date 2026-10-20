@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { MenuItem } from '@/types/menu';
 import { mergeStockWithMenuItems } from '@/lib/stockStore';
+import { getCafeSettings } from '@/lib/settingsStore';
 import CustomerMenu from '@/components/CustomerMenu';
 import Link from 'next/link';
 import { 
@@ -11,7 +12,10 @@ import {
   MapPin, 
   ShieldCheck, 
   ArrowRight,
-  AlertTriangle 
+  AlertTriangle,
+  Wifi,
+  Megaphone,
+  Store
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -50,6 +54,9 @@ export default async function CustomerHomePage() {
 
   const staffDisplayName = user?.user_metadata?.full_name || user?.email || 'Staf Kafe';
 
+  // 3. Ambil pengaturan kafe dinamis (nama toko, jam operasional, wifi, promo banner)
+  const cafeSettings = getCafeSettings();
+
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased pb-28 selection:bg-amber-500 selection:text-white">
       {/* Background Glow Accents */}
@@ -79,6 +86,14 @@ export default async function CustomerHomePage() {
         </div>
       )}
 
+      {/* Banner Pengumuman Promo Kafe Dinamis (Diatur dari Mode Admin) */}
+      {cafeSettings.promoBannerActive && cafeSettings.promoBannerText && (
+        <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white text-xs sm:text-sm font-semibold py-2.5 px-4 shadow-sm flex items-center justify-center gap-2">
+          <Megaphone className="w-4 h-4 shrink-0 animate-bounce" />
+          <span className="text-center">{cafeSettings.promoBannerText}</span>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
         {/* Header Kafe Elegan untuk Pelanggan */}
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-amber-900 via-amber-950 to-slate-950 text-white shadow-xl shadow-amber-950/20 relative overflow-hidden">
@@ -88,22 +103,28 @@ export default async function CustomerHomePage() {
           <div className="relative z-10 space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Menu Digital Kafe Resmi</span>
+              <span>{cafeSettings.isOpen ? 'Buka Sekarang • Menu Digital' : 'Tutup Sementara'}</span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-              Katalog Menu & Pemesanan Meja
+              {cafeSettings.cafeName || 'Katalog Menu & Pemesanan Meja'}
             </h1>
 
             <div className="flex flex-wrap items-center gap-4 text-xs text-amber-200/80 pt-1">
               <span className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
-                Buka: 08:00 - 22:00 WIB
+                {cafeSettings.operatingHours || '08:00 - 22:00 WIB'}
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                Dine-in (Pesan di Meja) & Takeaway
+                {cafeSettings.address || 'Dine-in (Pesan di Meja) & Takeaway'}
               </span>
+              {cafeSettings.wifiSsid && (
+                <span className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 rounded-full text-amber-200">
+                  <Wifi className="w-3.5 h-3.5 text-amber-400" />
+                  Wi-Fi: <strong className="text-white">{cafeSettings.wifiSsid}</strong> (Pass: {cafeSettings.wifiPassword || 'Gratis'})
+                </span>
+              )}
             </div>
           </div>
 
@@ -144,7 +165,7 @@ export default async function CustomerHomePage() {
 
         {/* Tampilan Menu Pelanggan (Client Component) */}
         <section>
-          <CustomerMenu initialItems={menuItems} />
+          <CustomerMenu initialItems={menuItems} initialSettings={cafeSettings} />
         </section>
       </div>
     </main>

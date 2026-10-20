@@ -9,6 +9,10 @@ import MenuCatalog from '@/components/MenuCatalog';
 import StaffOrdersManager from '@/components/StaffOrdersManager';
 import TableQrGenerator from '@/components/TableQrGenerator';
 import CashierPosTerminal from '@/components/CashierPosTerminal';
+import AdminAnalytics from '@/components/AdminAnalytics';
+import AdminStoreSettings from '@/components/AdminStoreSettings';
+import { CafeSettings, DEFAULT_SETTINGS } from '@/types/settings';
+import { batchRestockLowStockAction } from '@/app/actions';
 import { 
   Receipt, 
   Settings, 
@@ -19,37 +23,65 @@ import {
   Database, 
   AlertTriangle, 
   Box, 
-  QrCode,
-  Clock,
-  Sparkles,
-  Info,
-  Layers,
-  ShoppingBag,
-  Printer,
-  Calendar,
-  CreditCard,
-  Banknote,
-  TrendingUp,
-  FileText,
-  RotateCcw
+  QrCode, 
+  Clock, 
+  Sparkles, 
+  Info, 
+  Layers, 
+  ShoppingBag, 
+  Printer, 
+  Calendar, 
+  CreditCard, 
+  Banknote, 
+  TrendingUp, 
+  FileText, 
+  RotateCcw,
+  Zap,
+  BarChart3,
+  Store,
+  Flame
 } from 'lucide-react';
 
 export type DashboardMode = 'kasir' | 'admin' | 'semua';
 export type KasirSubTab = 'pos' | 'antrean' | 'stok' | 'rekap';
+export type AdminSubTab = 'katalog' | 'analisis' | 'pengaturan' | 'qr';
 
 interface DashboardViewSwitcherProps {
   initialOrders: CafeOrder[];
   menuItems: MenuItem[];
+  initialSettings?: CafeSettings;
 }
 
 export default function DashboardViewSwitcher({
   initialOrders,
   menuItems,
+  initialSettings,
 }: DashboardViewSwitcherProps) {
   const router = useRouter();
   const [mode, setMode] = useState<DashboardMode>('kasir');
   const [kasirSubTab, setKasirSubTab] = useState<KasirSubTab>('antrean');
+  const [adminSubTab, setAdminSubTab] = useState<AdminSubTab>('katalog');
+  const [settings, setSettings] = useState<CafeSettings>(initialSettings || DEFAULT_SETTINGS);
+  const [isRestocking, setIsRestocking] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const handleBatchRestock = async () => {
+    if (!window.confirm('Isi ulang +20 porsi untuk semua menu yang habis / stok menipis?')) return;
+    setIsRestocking(true);
+    try {
+      const res = await batchRestockLowStockAction(20);
+      if (res.success) {
+        alert(`Berhasil mengisi ulang stok untuk ${res.count} menu!`);
+        router.refresh();
+      } else {
+        alert(res.error || 'Gagal melakukan restock massal.');
+      }
+    } catch {
+      alert('Terjadi kesalahan saat restock.');
+    } finally {
+      setIsRestocking(false);
+    }
+  };
 
   // Muat preferensi mode staf dari localStorage jika ada
   useEffect(() => {
@@ -546,98 +578,212 @@ export default function DashboardViewSwitcher({
       {/* ======================================================== */}
       {(mode === 'admin' || mode === 'semua') && (
         <div className="space-y-6 animate-fade-in">
-          {/* Kartu Statistik Inventaris & Penjualan (Khusus Admin / Tampilan Penuh) */}
-          <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                <Database className="w-5 h-5" />
+          
+          {/* Sub-Navigasi Khusus Mode Admin Toko */}
+          {mode === 'admin' && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setAdminSubTab('katalog')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    adminSubTab === 'katalog'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Box className="w-4 h-4" />
+                  <span>Katalog & Stok</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAdminSubTab('analisis')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    adminSubTab === 'analisis'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Analisis & Best Sellers</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAdminSubTab('pengaturan')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    adminSubTab === 'pengaturan'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Store className="w-4 h-4" />
+                  <span>Pengaturan Kafe & Wi-Fi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAdminSubTab('qr')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    adminSubTab === 'qr'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span>Cetak QR Meja</span>
+                </button>
               </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Menu</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white">{totalMenu}</p>
+
+              {/* Status Toko Aktif */}
+              <div className="hidden md:flex items-center gap-2 text-xs font-bold pr-2">
+                <span className="text-slate-400">Status Kafe:</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${
+                  settings.isOpen
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30'
+                }`}>
+                  {settings.isOpen ? '🟢 Buka' : '🔴 Tutup Sementara'}
+                </span>
               </div>
             </div>
+          )}
 
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Menu Ready</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{readyMenu}</p>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                <XCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Habis</p>
-                <p className="text-xl font-bold text-rose-600 dark:text-rose-400">{outOfStockMenu}</p>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Box className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Stok</p>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{totalStockUnits} porsi</p>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                <DollarSign className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Rata-rata Harga</p>
-                <p className="text-base font-bold text-slate-900 dark:text-white truncate">
-                  {formatRupiah(avgPrice)}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Menipis</p>
-                <div className="flex items-baseline gap-1.5">
-                  <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{lowStockMenu}</p>
-                  <span className="text-[10px] font-semibold text-amber-600/80 dark:text-amber-400/80 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                    1-5 porsi
-                  </span>
+          {/* SUB-TAB ADMIN 1: KATALOG & STOK */}
+          {(adminSubTab === 'katalog' || mode === 'semua') && (
+            <div className="space-y-6">
+              {/* Kartu Statistik Inventaris & Penjualan (Khusus Admin / Tampilan Penuh) */}
+              <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Menu</p>
+                    <p className="text-xl font-bold text-slate-900 dark:text-white">{totalMenu}</p>
+                  </div>
                 </div>
-              </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Menu Ready</p>
+                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{readyMenu}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                    <XCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Habis</p>
+                    <p className="text-xl font-bold text-rose-600 dark:text-rose-400">{outOfStockMenu}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Box className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Stok</p>
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{totalStockUnits} porsi</p>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Rata-rata Harga</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white truncate">
+                      {formatRupiah(avgPrice)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Menipis</p>
+                    <div className="flex items-baseline gap-1.5">
+                      <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{lowStockMenu}</p>
+                      <span className="text-[10px] font-semibold text-amber-600/80 dark:text-amber-400/80 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                        1-5 porsi
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Form Tambah Menu Baru (Khusus Admin) */}
+              <section>
+                <AddMenuForm />
+              </section>
+
+              {/* Manajemen Data Menu & Stok dengan Tombol Restock Massal */}
+              <section className="pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                      Manajemen Data Menu & Stok
+                    </h2>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      Menampilkan {menuItems.length} menu terdaftar • {lowStockMenu + outOfStockMenu} stok butuh perhatian
+                    </span>
+                  </div>
+
+                  {/* Tombol Restock Cepat Massal (+20 Porsi) */}
+                  {lowStockMenu + outOfStockMenu > 0 && (
+                    <button
+                      type="button"
+                      disabled={isRestocking}
+                      onClick={handleBatchRestock}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold text-amber-900 dark:text-amber-200 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-sm"
+                    >
+                      <Zap className="w-4 h-4 text-amber-600 fill-amber-500" />
+                      <span>
+                        {isRestocking
+                          ? 'Sedang Mengisi Ulang...'
+                          : `⚡ Restock Cepat ${lowStockMenu + outOfStockMenu} Menu Menipis (+20 Porsi)`}
+                      </span>
+                    </button>
+                  )}
+                </div>
+                <MenuCatalog initialItems={menuItems} />
+              </section>
             </div>
-          </section>
+          )}
 
-          {/* Generator & Cetak QR Code Meja Kafe (Self-Order) */}
-          <section>
-            <TableQrGenerator />
-          </section>
+          {/* SUB-TAB ADMIN 2: ANALISIS PENJUALAN & BEST SELLERS */}
+          {(adminSubTab === 'analisis' || mode === 'semua') && (
+            <AdminAnalytics orders={initialOrders} menuItems={menuItems} />
+          )}
 
-          {/* Form Tambah Menu Baru (Khusus Admin) */}
-          <section>
-            <AddMenuForm />
-          </section>
+          {/* SUB-TAB ADMIN 3: PENGATURAN TOKO & WI-FI */}
+          {(adminSubTab === 'pengaturan' || mode === 'semua') && (
+            <AdminStoreSettings
+              initialSettings={settings}
+              onSaved={(newS) => {
+                setSettings(newS);
+                router.refresh();
+              }}
+            />
+          )}
 
-          {/* Manajemen Data Menu & Stok (Edit Harga, Kategori, Hapus) */}
-          <section className="pt-2">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Manajemen Data Menu & Stok
-              </h2>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Menampilkan {menuItems.length} menu terdaftar
-              </span>
-            </div>
-            <MenuCatalog initialItems={menuItems} />
-          </section>
+          {/* SUB-TAB ADMIN 4: GENERATOR & CETAK QR MEJA */}
+          {(adminSubTab === 'qr' || mode === 'semua') && (
+            <section>
+              <TableQrGenerator />
+            </section>
+          )}
         </div>
       )}
     </div>
