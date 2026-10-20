@@ -806,26 +806,93 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                     </button>
                   </>
                 ) : (
-                  /* Sukses Konfirmasi QRIS: Pelanggan Cukup Menunggu di Meja */
-                  <div className="py-6 space-y-4 animate-fade-in">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-lg">
-                      <ChefHat className="w-10 h-10 animate-bounce" />
+                  /* =========================================================================
+                     SUKSES QRIS: OTOMATIS TAMPILKAN STRUK RESMI & STATUS PESANAN DIPROSES
+                     ========================================================================= */
+                  <div className="space-y-4 animate-fade-in text-center">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-lg ring-4 ring-emerald-500/20">
+                      <CheckCircle2 className="w-9 h-9" />
                     </div>
 
                     <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        Pembayaran QRIS Terverifikasi!
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-500/30">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                        Pembayaran QRIS Berhasil • LUNAS
                       </span>
-                      <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                        Pesanan Sedang Disiapkan
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+                        Pesanan Sedang Diproses
                       </h3>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 max-w-sm mx-auto leading-relaxed">
-                        Terima kasih, <strong>{activeOrder.name}</strong>! Anda tidak perlu ke kasir. Silakan <strong>duduk santai di {activeOrder.table}</strong>, barista dan staf kafe akan segera mengantarkan pesanan Anda langsung ke meja.
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                        Terima kasih, <strong>{activeOrder.name}</strong>! Pembayaran mandiri via QRIS telah diterima. Silakan <strong>duduk santai di {activeOrder.table}</strong>, barista sedang meracik sajian Anda dan akan diantar langsung ke meja!
                       </p>
                     </div>
 
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
-                      ✨ Status Pesanan: Sedang Diramu & Siap Diantar ke Meja
+                    {/* Struk Pesanan Digital Resmi (LUNAS QRIS) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-left text-xs space-y-3 border border-emerald-500/30 dark:border-emerald-500/30 shadow-inner">
+                      <div className="flex items-center justify-between pb-2 border-b border-dashed border-slate-300 dark:border-slate-700">
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-white block text-sm">
+                            KAFE ARTISAN OFFICIAL
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {activeOrder.table} • {activeOrder.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                            ✓ LUNAS (QRIS)
+                          </span>
+                          <span className="font-mono text-slate-400 text-[10px] block mt-0.5">
+                            {activeOrder.createdAt} WIB
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        <span>Nomor Pesanan:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{activeOrder.orderId}</span>
+                      </div>
+
+                      {/* Rincian Menu */}
+                      <ul className="space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800/50">
+                        {activeOrder.items.map((i) => (
+                          <li key={i.menuItem.id} className="pt-1.5 flex justify-between items-start">
+                            <div>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                                {i.quantity}x {i.menuItem.name}
+                              </span>
+                              {i.note && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 italic block">
+                                  Catatan: {i.note}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              {formatRupiah(i.menuItem.price * i.quantity)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Total & Keterangan Lunas */}
+                      <div className="pt-2 border-t-2 border-dashed border-slate-300 dark:border-slate-700 space-y-1">
+                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                          <span>Metode Pembayaran:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">QRIS Mandiri di Meja</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-black text-slate-900 dark:text-white">
+                          <span>Total Pembayaran (Lunas):</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 text-base">
+                            {formatRupiah(activeOrder.total)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Pesanan Diproses */}
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-center gap-2 font-semibold">
+                      <ChefHat className="w-4 h-4 animate-bounce text-emerald-600 dark:text-emerald-400" />
+                      <span>Status: Pesanan Sedang Diracik Barista & Siap Diantar ke Meja</span>
                     </div>
                   </div>
                 )}
@@ -905,26 +972,93 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                     </button>
                   </>
                 ) : (
-                  /* Sukses Transfer: Pelanggan Menunggu di Meja */
-                  <div className="py-6 space-y-4 animate-fade-in">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-lg">
-                      <ChefHat className="w-10 h-10 animate-bounce" />
+                  /* =========================================================================
+                     SUKSES TRANSFER: TAMPILKAN STRUK RESMI & STATUS PESANAN DIPROSES
+                     ========================================================================= */
+                  <div className="space-y-4 animate-fade-in text-center">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-lg ring-4 ring-cyan-500/20">
+                      <CheckCircle2 className="w-9 h-9" />
                     </div>
 
                     <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                        Transfer Berhasil Dikonfirmasi!
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 text-xs font-bold border border-cyan-500/30">
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
+                        Transfer Bank Berhasil • LUNAS
                       </span>
-                      <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                        Pesanan Sedang Diracik
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+                        Pesanan Sedang Diproses
                       </h3>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 max-w-sm mx-auto leading-relaxed">
-                        Terima kasih, <strong>{activeOrder.name}</strong>! Pembayaran transfer Anda telah tercatat. Silakan <strong>tetap duduk santai di {activeOrder.table}</strong>, hidangan Anda akan segera diantar langsung ke meja.
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                        Terima kasih, <strong>{activeOrder.name}</strong>! Pembayaran transfer bank Anda telah diterima. Silakan <strong>duduk santai di {activeOrder.table}</strong>, sajian Anda sedang diracik dan akan langsung diantar ke meja!
                       </p>
                     </div>
 
-                    <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 rounded-2xl text-xs text-cyan-800 dark:text-cyan-300 font-semibold">
-                      ✨ Status Pesanan: Diproses & Siap Diantar ke Meja Anda
+                    {/* Struk Pesanan Digital Resmi (LUNAS Transfer) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-left text-xs space-y-3 border border-cyan-500/30 dark:border-cyan-500/30 shadow-inner">
+                      <div className="flex items-center justify-between pb-2 border-b border-dashed border-slate-300 dark:border-slate-700">
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-white block text-sm">
+                            KAFE ARTISAN OFFICIAL
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {activeOrder.table} • {activeOrder.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                            ✓ LUNAS (TRANSFER)
+                          </span>
+                          <span className="font-mono text-slate-400 text-[10px] block mt-0.5">
+                            {activeOrder.createdAt} WIB
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        <span>Nomor Pesanan:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{activeOrder.orderId}</span>
+                      </div>
+
+                      {/* Rincian Menu */}
+                      <ul className="space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800/50">
+                        {activeOrder.items.map((i) => (
+                          <li key={i.menuItem.id} className="pt-1.5 flex justify-between items-start">
+                            <div>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                                {i.quantity}x {i.menuItem.name}
+                              </span>
+                              {i.note && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 italic block">
+                                  Catatan: {i.note}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              {formatRupiah(i.menuItem.price * i.quantity)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Total & Keterangan Lunas */}
+                      <div className="pt-2 border-t-2 border-dashed border-slate-300 dark:border-slate-700 space-y-1">
+                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                          <span>Metode Pembayaran:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Transfer Bank Mandiri</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-black text-slate-900 dark:text-white">
+                          <span>Total Pembayaran (Lunas):</span>
+                          <span className="text-cyan-600 dark:text-cyan-400 text-base">
+                            {formatRupiah(activeOrder.total)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Pesanan Diproses */}
+                    <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 rounded-2xl text-xs text-cyan-800 dark:text-cyan-300 flex items-center justify-center gap-2 font-semibold">
+                      <ChefHat className="w-4 h-4 animate-bounce text-cyan-600 dark:text-cyan-400" />
+                      <span>Status: Pesanan Sedang Diracik Barista & Siap Diantar ke Meja</span>
                     </div>
                   </div>
                 )}
