@@ -40,7 +40,7 @@ export async function login(prevState: AuthState | null, formData: FormData): Pr
   }
 
   revalidatePath('/', 'layout');
-  redirect('/');
+  redirect('/dashboard');
 }
 
 /**
@@ -80,7 +80,7 @@ export async function signup(prevState: AuthState | null, formData: FormData): P
   // Jika session langsung aktif (auto-confirm aktif di Supabase)
   if (data.session) {
     revalidatePath('/', 'layout');
-    redirect('/');
+    redirect('/dashboard');
   }
 
   // Jika memerlukan konfirmasi email

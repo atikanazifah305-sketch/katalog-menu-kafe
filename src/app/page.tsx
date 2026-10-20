@@ -1,34 +1,29 @@
 import { createClient } from '@/utils/supabase/server';
-import { redirect } from 'next/navigation';
 import { MenuItem } from '@/types/menu';
-import AddMenuForm from '@/components/AddMenuForm';
-import MenuCatalog from '@/components/MenuCatalog';
-import { signout } from '@/app/auth/actions';
+import CustomerMenu from '@/components/CustomerMenu';
+import Link from 'next/link';
 import { 
   Coffee, 
-  CheckCircle2, 
-  XCircle, 
-  DollarSign, 
-  Database, 
-  AlertTriangle, 
-  LogOut,
-  User as UserIcon
+  Lock, 
+  Sparkles, 
+  Clock, 
+  MapPin, 
+  ShieldCheck, 
+  ArrowRight,
+  AlertTriangle 
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CafeMenuPage() {
+export default async function CustomerHomePage() {
   const supabase = await createClient();
 
-  // 1. Verifikasi Autentikasi Pengguna
+  // 1. Cek apakah ada staf yang sedang login (opsional)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect('/login');
-  }
-
+  // 2. Ambil data menu kafe (Akses Publik / Tanpa Perlu Login)
   let menuItems: MenuItem[] = [];
   let fetchError: string | null = null;
 
@@ -36,7 +31,8 @@ export default async function CafeMenuPage() {
     const { data, error } = await supabase
       .from('menu_items')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('category', { ascending: true })
+      .order('name', { ascending: true });
 
     if (error) {
       fetchError = error.message;
@@ -47,163 +43,107 @@ export default async function CafeMenuPage() {
     if (err instanceof Error) {
       fetchError = err.message;
     } else {
-      fetchError = 'Gagal terhubung ke Supabase. Periksa konfigurasi .env.local Anda.';
+      fetchError = 'Gagal memuat katalog menu.';
     }
   }
 
-  // Statistik Ringkasan Menu
-  const totalMenu = menuItems.length;
-  const readyMenu = menuItems.filter((item) => item.is_ready).length;
-  const outOfStockMenu = menuItems.filter((item) => !item.is_ready).length;
-  const avgPrice =
-    totalMenu > 0
-      ? Math.round(menuItems.reduce((acc, curr) => acc + Number(curr.price || 0), 0) / totalMenu)
-      : 0;
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
-  const displayName = user.user_metadata?.full_name || 'Staf Kafe';
+  const staffDisplayName = user?.user_metadata?.full_name || user?.email || 'Staf Kafe';
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased pb-20 selection:bg-amber-500 selection:text-white">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased pb-28 selection:bg-amber-500 selection:text-white">
       {/* Background Glow Accents */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/10 dark:bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-orange-500/10 dark:bg-orange-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/3 w-96 h-96 bg-amber-500/10 dark:bg-amber-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-orange-500/10 dark:bg-orange-500/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
-        {/* Header Aplikasi dengan Profil Staf & Tombol Keluar */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-lg shadow-amber-500/25">
-              <Coffee className="w-6 h-6" />
+      {/* Top Banner Staf (Hanya Tampil Jika Staf Sedang Login) */}
+      {user && (
+        <div className="bg-amber-600 text-white text-xs py-2 px-4">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-200" />
+              <span>
+                Sedang login sebagai <strong>{staffDisplayName}</strong> (Akun Staf)
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                  Katalog Menu Kafe
-                </h1>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  Supabase Auth
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                Kelola sajian menu kafe, kategori, harga, dan ketersediaan stok
-              </p>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 font-bold underline hover:text-amber-100"
+            >
+              <span>Buka Dashboard Manajemen</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {/* Header Kafe Elegan untuk Pelanggan */}
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-amber-900 via-amber-950 to-slate-950 text-white shadow-xl shadow-amber-950/20 relative overflow-hidden">
+          {/* Subtle Ambient Background Deco */}
+          <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Menu Digital Kafe Resmi</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
+              Katalog Menu & Pemesanan Meja
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-4 text-xs text-amber-200/80 pt-1">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                Buka: 08:00 - 22:00 WIB
+              </span>
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                Dine-in (Pesan di Meja) & Takeaway
+              </span>
             </div>
           </div>
 
-          {/* User Profile & Logout Button */}
-          <div className="flex items-center gap-3 self-end sm:self-auto bg-white/70 dark:bg-slate-900/70 backdrop-blur-md p-1.5 sm:p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs uppercase">
-              {displayName[0] || <UserIcon className="w-4 h-4" />}
-            </div>
-            <div className="hidden sm:flex flex-col text-left pr-2">
-              <span className="text-xs font-bold text-slate-800 dark:text-white leading-tight">
-                {displayName}
-              </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
-                {user.email}
-              </span>
-            </div>
-
-            <form action={signout}>
-              <button
-                type="submit"
-                title="Keluar dari akun"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition cursor-pointer"
+          {/* Tombol Akses Khusus Staf / Karyawan */}
+          <div className="relative z-10 self-stretch sm:self-auto flex items-center">
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-amber-500/20"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Keluar</span>
-              </button>
-            </form>
+                <ShieldCheck className="w-4 h-4" />
+                <span>Panel Manajemen Staf</span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-semibold text-xs transition cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-300" />
+                <span>Portal Karyawan / Staf</span>
+              </Link>
+            )}
           </div>
         </header>
 
-        {/* Notifikasi jika ada kendala koneksi database */}
+        {/* Notifikasi Kendala Database jika ada */}
         {fetchError && (
           <div className="p-4 sm:p-5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl text-amber-800 dark:text-amber-300">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0 text-amber-600" />
-              <div className="text-xs sm:text-sm space-y-2">
-                <p className="font-semibold">
-                  Tabel `menu_items` belum terdeteksi atau konfigurasi database perlu diperiksa:
-                </p>
-                <p className="font-mono text-xs bg-amber-100 dark:bg-amber-900/60 p-2 rounded-lg">
-                  {fetchError}
-                </p>
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  💡 Jalankan script SQL migration di SQL Editor Dashboard Supabase Anda.
-                </p>
+              <div className="text-xs sm:text-sm">
+                <p className="font-semibold">Katalog menu sedang dipersiapkan:</p>
+                <p className="font-mono text-xs mt-1">{fetchError}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Ringkasan Statistik Menu */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-              <Database className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Menu</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">{totalMenu}</p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Menu Ready</p>
-              <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{readyMenu}</p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-              <XCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Habis</p>
-              <p className="text-xl font-bold text-rose-600 dark:text-rose-400">{outOfStockMenu}</p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Rata-rata Harga</p>
-              <p className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
-                {formatRupiah(avgPrice)}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Form Tambah Menu */}
+        {/* Tampilan Menu Pelanggan (Client Component) */}
         <section>
-          <AddMenuForm />
-        </section>
-
-        {/* Daftar & Katalog Menu */}
-        <section className="pt-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Sajian Menu</h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Menampilkan {menuItems.length} menu terdaftar</span>
-          </div>
-          <MenuCatalog initialItems={menuItems} />
+          <CustomerMenu initialItems={menuItems} />
         </section>
       </div>
     </main>
