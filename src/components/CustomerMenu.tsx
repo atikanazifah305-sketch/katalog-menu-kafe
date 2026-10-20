@@ -27,8 +27,16 @@ import {
   ChefHat, 
   ArrowRight,
   ShieldCheck,
-  Smartphone
+  Smartphone,
+  RefreshCw
 } from 'lucide-react';
+
+import { CafeOrder, OrderStatus } from '@/types/order';
+import { 
+  submitOrderAction, 
+  updateOrderStatusAction, 
+  checkOrderStatusAction 
+} from '@/app/actions';
 
 interface CartItem {
   menuItem: MenuItem;
@@ -45,7 +53,7 @@ interface OrderRecord {
   table: string;
   name: string;
   paymentMethod: PaymentMethod;
-  paymentStatus: 'pending_cash' | 'paid_online' | 'processing';
+  paymentStatus: OrderStatus;
   createdAt: string;
 }
 
@@ -84,6 +92,42 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
       // ignore
     }
   }, []);
+
+  // Polling status pesanan jika masih menunggu verifikasi kasir
+  useEffect(() => {
+    if (!activeOrder) return;
+    if (activeOrder.paymentStatus === 'verified_paid' || activeOrder.paymentStatus === 'completed') {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await checkOrderStatusAction(activeOrder.orderId);
+        if (res && res.status) {
+          if (res.status === 'verified_paid' || res.status === 'completed') {
+            setActiveOrder((prev) => {
+              if (!prev) return null;
+              const updated: OrderRecord = { ...prev, paymentStatus: 'verified_paid' };
+              saveOrderToHistory(updated);
+              return updated;
+            });
+            setIsConfirmedPaid(true);
+          } else if (res.status === 'cancelled') {
+            setActiveOrder((prev) => {
+              if (!prev) return null;
+              const updated: OrderRecord = { ...prev, paymentStatus: 'cancelled' };
+              saveOrderToHistory(updated);
+              return updated;
+            });
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [activeOrder]);
 
   // Save history to localStorage
   const saveOrderToHistory = (order: OrderRecord) => {
@@ -183,10 +227,12 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
   );
 
   // Handler Checkout / Buat Pesanan
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
 
     const orderId = `KF-${Math.floor(1000 + Math.random() * 9000)}`;
+    const initialStatus: OrderStatus = selectedPaymentMethod === 'cash' ? 'pending_cash' : 'pending_verification';
+
     const newOrder: OrderRecord = {
       orderId,
       items: [...cart],
@@ -194,7 +240,7 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
       table: tableNumber,
       name: customerName.trim() || 'Pelanggan Meja',
       paymentMethod: selectedPaymentMethod,
-      paymentStatus: selectedPaymentMethod === 'cash' ? 'pending_cash' : 'processing',
+      paymentStatus: initialStatus,
       createdAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -203,6 +249,28 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
     setIsConfirmedPaid(false);
     setCart([]);
     setIsCartOpen(false);
+
+    // Kirim pesanan ke server agar tampil di dashboard kasir
+    try {
+      await submitOrderAction({
+        id: orderId,
+        table_number: newOrder.table,
+        customer_name: newOrder.name,
+        items: newOrder.items.map((i) => ({
+          menuItemId: i.menuItem.id,
+          name: i.menuItem.name,
+          price: i.menuItem.price,
+          quantity: i.quantity,
+          note: i.note,
+        })),
+        total_price: newOrder.total,
+        payment_method: newOrder.paymentMethod,
+        status: initialStatus,
+        created_at: newOrder.createdAt,
+      });
+    } catch (err) {
+      console.error('Gagal mengirim pesanan ke server:', err);
+    }
   };
 
   return (
@@ -798,16 +866,21 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                     </div>
 
                     <button
-                      onClick={() => setIsConfirmedPaid(true)}
-                      className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/30 active:scale-98 transition cursor-pointer flex items-center justify-center gap-2"
+                      onClick={async () => {
+                        setIsConfirmedPaid(true);
+                        if (activeOrder) {
+                          await updateOrderStatusAction(activeOrder.orderId, 'pending_verification');
+                        }
+                      }}
+                      className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/30 active:scale-98 transition cursor-pointer flex items-center justify-center gap-2"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Saya Sudah Bayar via QRIS
+                      <Clock className="w-4 h-4" />
+                      Saya Sudah Scan & Bayar (Minta Verifikasi Kasir)
                     </button>
                   </>
-                ) : (
+                ) : activeOrder.paymentStatus === 'verified_paid' || activeOrder.paymentStatus === 'completed' ? (
                   /* =========================================================================
-                     SUKSES QRIS: OTOMATIS TAMPILKAN STRUK RESMI & STATUS PESANAN DIPROSES
+                     SUKSES QRIS DIVERIFIKASI KASIR: STRUK LUNAS & SEDANG DIRACIK
                      ========================================================================= */
                   <div className="space-y-4 animate-fade-in text-center">
                     <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-lg ring-4 ring-emerald-500/20">
@@ -823,7 +896,7 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                         Pesanan Sedang Diproses
                       </h3>
                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
-                        Terima kasih, <strong>{activeOrder.name}</strong>! Pembayaran mandiri via QRIS telah diterima. Silakan <strong>duduk santai di {activeOrder.table}</strong>, barista sedang meracik sajian Anda dan akan diantar langsung ke meja!
+                        Terima kasih, <strong>{activeOrder.name}</strong>! Pembayaran mandiri via QRIS telah <strong>diverifikasi oleh kasir</strong>. Silakan <strong>duduk santai di {activeOrder.table}</strong>, barista sedang meracik sajian Anda dan akan diantar langsung ke meja!
                       </p>
                     </div>
 
@@ -840,7 +913,7 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                         </div>
                         <div className="text-right">
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                            ✓ LUNAS (QRIS)
+                            ✓ LUNAS (DIVERIFIKASI KASIR)
                           </span>
                           <span className="font-mono text-slate-400 text-[10px] block mt-0.5">
                             {activeOrder.createdAt} WIB
@@ -893,6 +966,96 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                     <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-center gap-2 font-semibold">
                       <ChefHat className="w-4 h-4 animate-bounce text-emerald-600 dark:text-emerald-400" />
                       <span>Status: Pesanan Sedang Diracik Barista & Siap Diantar ke Meja</span>
+                    </div>
+                  </div>
+                ) : (
+                  /* =========================================================================
+                     MENUNGGU VERIFIKASI QRIS OLEH KASIR
+                     ========================================================================= */
+                  <div className="space-y-4 animate-fade-in text-center">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-lg ring-4 ring-amber-500/20">
+                      <Clock className="w-9 h-9 animate-spin" />
+                    </div>
+
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 text-xs font-bold border border-amber-500/30">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                        Permintaan Terkirim • Menunggu Verifikasi Kasir
+                      </span>
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+                        Sedang Diverifikasi Kasir
+                      </h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                        Terima kasih, <strong>{activeOrder.name}</strong>! Staf kasir kami sedang mencocokkan mutasi saldo QRIS yang masuk. Layar ini akan <strong>otomatis berubah menjadi LUNAS</strong> begitu kasir memvalidasi pembayaran Anda!
+                      </p>
+                    </div>
+
+                    {/* Struk Pesanan Digital (Status Belum Lunas - Menunggu Kasir) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-left text-xs space-y-3 border border-amber-400/50 dark:border-amber-400/30 shadow-inner">
+                      <div className="flex items-center justify-between pb-2 border-b border-dashed border-slate-300 dark:border-slate-700">
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-white block text-sm">
+                            KAFE ARTISAN OFFICIAL
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {activeOrder.table} • {activeOrder.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                            MENUNGGU VERIFIKASI KASIR
+                          </span>
+                          <span className="font-mono text-slate-400 text-[10px] block mt-0.5">
+                            {activeOrder.createdAt} WIB
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        <span>Nomor Pesanan:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{activeOrder.orderId}</span>
+                      </div>
+
+                      {/* Rincian Menu */}
+                      <ul className="space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800/50">
+                        {activeOrder.items.map((i) => (
+                          <li key={i.menuItem.id} className="pt-1.5 flex justify-between items-start">
+                            <div>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                                {i.quantity}x {i.menuItem.name}
+                              </span>
+                              {i.note && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 italic block">
+                                  Catatan: {i.note}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              {formatRupiah(i.menuItem.price * i.quantity)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Total */}
+                      <div className="pt-2 border-t-2 border-dashed border-slate-300 dark:border-slate-700 space-y-1">
+                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                          <span>Metode Pembayaran:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">QRIS Mandiri di Meja</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-black text-slate-900 dark:text-white">
+                          <span>Total Tagihan:</span>
+                          <span className="text-amber-600 dark:text-amber-400 text-base">
+                            {formatRupiah(activeOrder.total)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Live Indicator */}
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-xs text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2 font-semibold">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600 dark:text-amber-400" />
+                      <span>Kasir sedang mengecek mutasi... (Halaman akan otomatis update saat lunas)</span>
                     </div>
                   </div>
                 )}
@@ -960,20 +1123,25 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                       <p className="font-bold text-slate-800 dark:text-white">Tahap Pembayaran:</p>
                       <p className="text-[11px] text-slate-600 dark:text-slate-300">1. Buka mobile banking dan transfer sejumlah <strong>{formatRupiah(activeOrder.total)}</strong>.</p>
                       <p className="text-[11px] text-slate-600 dark:text-slate-300">2. Berikan berita/keterangan: <strong>{activeOrder.orderId}</strong>.</p>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300">3. Klik tombol &ldquo;Saya Sudah Transfer&rdquo; di bawah.</p>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300">3. Klik tombol &ldquo;Saya Sudah Transfer&rdquo; di bawah untuk verifikasi kasir.</p>
                     </div>
 
                     <button
-                      onClick={() => setIsConfirmedPaid(true)}
+                      onClick={async () => {
+                        setIsConfirmedPaid(true);
+                        if (activeOrder) {
+                          await updateOrderStatusAction(activeOrder.orderId, 'pending_verification');
+                        }
+                      }}
                       className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-600/30 active:scale-98 transition cursor-pointer flex items-center justify-center gap-2"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Saya Sudah Transfer Bank
+                      <Clock className="w-4 h-4" />
+                      Saya Sudah Transfer (Minta Verifikasi Kasir)
                     </button>
                   </>
-                ) : (
+                ) : activeOrder.paymentStatus === 'verified_paid' || activeOrder.paymentStatus === 'completed' ? (
                   /* =========================================================================
-                     SUKSES TRANSFER: TAMPILKAN STRUK RESMI & STATUS PESANAN DIPROSES
+                     SUKSES TRANSFER DIVERIFIKASI KASIR: STRUK LUNAS & SEDANG DIRACIK
                      ========================================================================= */
                   <div className="space-y-4 animate-fade-in text-center">
                     <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-lg ring-4 ring-cyan-500/20">
@@ -989,7 +1157,7 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                         Pesanan Sedang Diproses
                       </h3>
                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
-                        Terima kasih, <strong>{activeOrder.name}</strong>! Pembayaran transfer bank Anda telah diterima. Silakan <strong>duduk santai di {activeOrder.table}</strong>, sajian Anda sedang diracik dan akan langsung diantar ke meja!
+                        Terima kasih, <strong>{activeOrder.name}</strong>! Pembayaran transfer bank Anda telah <strong>diverifikasi oleh kasir</strong>. Silakan <strong>duduk santai di {activeOrder.table}</strong>, sajian Anda sedang diracik dan akan langsung diantar ke meja!
                       </p>
                     </div>
 
@@ -1006,7 +1174,7 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                         </div>
                         <div className="text-right">
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
-                            ✓ LUNAS (TRANSFER)
+                            ✓ LUNAS (DIVERIFIKASI KASIR)
                           </span>
                           <span className="font-mono text-slate-400 text-[10px] block mt-0.5">
                             {activeOrder.createdAt} WIB
@@ -1059,6 +1227,96 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                     <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 rounded-2xl text-xs text-cyan-800 dark:text-cyan-300 flex items-center justify-center gap-2 font-semibold">
                       <ChefHat className="w-4 h-4 animate-bounce text-cyan-600 dark:text-cyan-400" />
                       <span>Status: Pesanan Sedang Diracik Barista & Siap Diantar ke Meja</span>
+                    </div>
+                  </div>
+                ) : (
+                  /* =========================================================================
+                     MENUNGGU VERIFIKASI TRANSFER OLEH KASIR
+                     ========================================================================= */
+                  <div className="space-y-4 animate-fade-in text-center">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-lg ring-4 ring-cyan-500/20">
+                      <Clock className="w-9 h-9 animate-spin" />
+                    </div>
+
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 text-xs font-bold border border-cyan-500/30">
+                        <AlertCircle className="w-3.5 h-3.5 text-cyan-500" />
+                        Permintaan Terkirim • Menunggu Verifikasi Kasir
+                      </span>
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+                        Sedang Diverifikasi Kasir
+                      </h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                        Terima kasih, <strong>{activeOrder.name}</strong>! Staf kasir kami sedang mencocokkan mutasi transfer bank yang masuk. Layar ini akan <strong>otomatis berubah menjadi LUNAS</strong> begitu kasir memvalidasi pembayaran Anda!
+                      </p>
+                    </div>
+
+                    {/* Struk Pesanan Digital (Status Belum Lunas - Menunggu Kasir) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-left text-xs space-y-3 border border-cyan-400/50 dark:border-cyan-400/30 shadow-inner">
+                      <div className="flex items-center justify-between pb-2 border-b border-dashed border-slate-300 dark:border-slate-700">
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-white block text-sm">
+                            KAFE ARTISAN OFFICIAL
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {activeOrder.table} • {activeOrder.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                            MENUNGGU VERIFIKASI KASIR
+                          </span>
+                          <span className="font-mono text-slate-400 text-[10px] block mt-0.5">
+                            {activeOrder.createdAt} WIB
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        <span>Nomor Pesanan:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{activeOrder.orderId}</span>
+                      </div>
+
+                      {/* Rincian Menu */}
+                      <ul className="space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800/50">
+                        {activeOrder.items.map((i) => (
+                          <li key={i.menuItem.id} className="pt-1.5 flex justify-between items-start">
+                            <div>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                                {i.quantity}x {i.menuItem.name}
+                              </span>
+                              {i.note && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 italic block">
+                                  Catatan: {i.note}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              {formatRupiah(i.menuItem.price * i.quantity)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Total */}
+                      <div className="pt-2 border-t-2 border-dashed border-slate-300 dark:border-slate-700 space-y-1">
+                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                          <span>Metode Pembayaran:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Transfer Bank Mandiri</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-black text-slate-900 dark:text-white">
+                          <span>Total Tagihan:</span>
+                          <span className="text-cyan-600 dark:text-cyan-400 text-base">
+                            {formatRupiah(activeOrder.total)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Live Indicator */}
+                    <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 rounded-2xl text-xs text-cyan-800 dark:text-cyan-300 flex items-center justify-center gap-2 font-semibold">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-600 dark:text-cyan-400" />
+                      <span>Kasir sedang mengecek mutasi transfer... (Halaman akan otomatis update saat lunas)</span>
                     </div>
                   </div>
                 )}

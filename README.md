@@ -17,17 +17,18 @@ Aplikasi web modern untuk katalog menu kafe dan pemesanan mandiri dari meja (*ta
   - Pilih meja (Meja 01 - Meja 08, Area Bar, atau Takeaway).
   - Masukkan nama pemesan dan catatan khusus untuk setiap menu (misal: *less sugar, es dipisah*).
   - Keranjang pesanan interaktif (+/- jumlah item dan kalkulasi harga otomatis).
-- **Pilihan Metode Pembayaran**:
+- **Pilihan Metode Pembayaran & Verifikasi Aman**:
   - 💵 **Tunai / Cash (Bayar di Kasir)**:
     - Menghasilkan struk pemesanan digital (`KF-XXXX`).
     - Menampilkan detail pesanan untuk ditunjukkan ke meja kasir saat pembayaran tunai.
-  - 📱 **QRIS Mandiri (Scan Langsung di Meja)**:
+  - 📱 **QRIS Mandiri (Scan Langsung di Meja dengan Verifikasi Kasir)**:
     - Menampilkan kode QRIS standar nasional lengkap dengan nominal tagihan tepat.
-    - Pelanggan membayar mandiri lewat m-Banking / e-Wallet (BCA, GoPay, OVO, DANA, ShopeePay).
-    - Setelah konfirmasi pembayaran, pelanggan cukup duduk santai menunggu pesanan diantar ke meja tanpa perlu antre ke kasir.
+    - Pelanggan scan QRIS dari HP, lalu menekan konfirmasi.
+    - Status pesanan menjadi **"Menunggu Verifikasi Kasir"** (mencegah klaim sepihak tanpa bayar).
+    - Layar pelanggan otomatis mendeteksi dan berubah menjadi **LUNAS** setelah kasir memvalidasi mutasi masuk!
   - 🏦 **Transfer Bank (BCA & Mandiri)**:
     - Menampilkan nomor rekening kafe resmi dengan fitur **Salin 1-Klik**.
-    - Konfirmasi mandiri dari meja, status pesanan otomatis berpindah ke *"Sedang Diracik"*.
+    - Dilengkapi verifikasi mutasi kasir yang sama untuk keamanan transaksi.
 - **Riwayat Pesanan Pelanggan**:
   - Drawer riwayat pesanan meja tersimpan di browser untuk memantau status atau mencetak ulang struk digital.
 
@@ -36,6 +37,10 @@ Aplikasi web modern untuk katalog menu kafe dan pemesanan mandiri dari meja (*ta
 ### 🔒 2. Portal Manajemen Staf & Barista (`/dashboard`)
 *Dilindungi secara ketat dengan Supabase Auth & Passcode Keamanan Staf.*
 
+- **🔔 Panel Pesanan Masuk & Verifikasi Kasir (Real-Time)**:
+  - Memantau pesanan masuk per meja (nomor meja, nama pemesan, rincian hidangan, total tagihan).
+  - Kasir dapat mencocokkan mutasi rekening/EDC lalu memverifikasi pembayaran dalam 1-klik (**"Verifikasi Lunas (Uang Masuk)"**).
+  - Kasir dapat menerima pembayaran tunai (**"Terima Pembayaran Tunai"**) atau menandai pesanan selesai (**"Tandai Selesai Diantar"**).
 - **Keamanan Akun Staf**:
   - Pelanggan biasa dicegah mendaftar ke portal staf berkat verifikasi **Kode Sandi Rahasia Staf** (`STAFF_SECRET_PASSCODE`).
   - Halaman dashboard terlindungi di tingkat server (*Server-side authentication*).

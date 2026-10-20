@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { MenuItem } from '@/types/menu';
 import AddMenuForm from '@/components/AddMenuForm';
 import MenuCatalog from '@/components/MenuCatalog';
+import StaffOrdersManager from '@/components/StaffOrdersManager';
+import { getAllOrders } from '@/lib/ordersStore';
 import { signout } from '@/app/auth/actions';
 import Link from 'next/link';
 import { 
@@ -78,6 +80,7 @@ export default async function StaffDashboardPage() {
   };
 
   const displayName = user.user_metadata?.full_name || 'Staf Karyawan';
+  const initialOrders = await getAllOrders();
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased pb-20 selection:bg-amber-500 selection:text-white">
@@ -211,6 +214,11 @@ export default async function StaffDashboardPage() {
               </p>
             </div>
           </div>
+        </section>
+
+        {/* Panel Pesanan Masuk & Verifikasi Kasir (Real-Time) */}
+        <section>
+          <StaffOrdersManager initialOrders={initialOrders} />
         </section>
 
         {/* Form Tambah Menu (Hanya Staf) */}

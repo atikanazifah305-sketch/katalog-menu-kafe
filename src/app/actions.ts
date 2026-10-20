@@ -2,6 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
+import { CafeOrder, OrderStatus } from '@/types/order';
+import { 
+  saveOrder, 
+  getAllOrders, 
+  getOrderById, 
+  updateOrderStatus 
+} from '@/lib/ordersStore';
 
 /**
  * Menambahkan menu baru ke database Supabase
@@ -194,4 +201,57 @@ export async function deleteMenuItem(id: string) {
   }
 
   revalidatePath('/');
+}
+
+/**
+ * Menyimpan pesanan baru yang dikirim oleh pelanggan
+ */
+export async function submitOrderAction(order: CafeOrder) {
+  try {
+    const saved = await saveOrder(order);
+    revalidatePath('/dashboard');
+    return { success: true, order: saved };
+  } catch (err: unknown) {
+    console.error('Gagal submit order:', err);
+    return { success: false, order, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Mengambil seluruh daftar pesanan meja untuk staf
+ */
+export async function getOrdersAction(): Promise<CafeOrder[]> {
+  try {
+    return await getAllOrders();
+  } catch (err) {
+    console.error('Gagal mengambil orders:', err);
+    return [];
+  }
+}
+
+/**
+ * Kasir/Barista mengubah status pesanan (Verifikasi Lunas, Selesai, Batal)
+ */
+export async function updateOrderStatusAction(orderId: string, status: OrderStatus) {
+  try {
+    const updated = await updateOrderStatus(orderId, status);
+    revalidatePath('/dashboard');
+    revalidatePath('/');
+    return { success: true, order: updated };
+  } catch (err: unknown) {
+    console.error('Gagal update order status:', err);
+    return { success: false, order: null };
+  }
+}
+
+/**
+ * Pelanggan mengecek status pembayaran pesanan secara berkala (polling)
+ */
+export async function checkOrderStatusAction(orderId: string): Promise<{ status: OrderStatus | null }> {
+  try {
+    const order = await getOrderById(orderId);
+    return { status: order ? order.status : null };
+  } catch {
+    return { status: null };
+  }
 }
