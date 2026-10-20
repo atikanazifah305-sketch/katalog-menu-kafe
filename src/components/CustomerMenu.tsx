@@ -16,7 +16,6 @@ import {
   X, 
   AlertCircle, 
   Tag, 
-  Share2, 
   Clock, 
   Banknote, 
   QrCode, 
@@ -204,36 +203,6 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
     setIsConfirmedPaid(false);
     setCart([]);
     setIsCartOpen(false);
-  };
-
-  // Helper WhatsApp Share format
-  const getWhatsAppMessageUrl = (order: OrderRecord) => {
-    const textLines = [
-      `*BUKTI PEMESANAN KAFE (${order.orderId})*`,
-      `Meja: ${order.table}`,
-      `Nama: ${order.name}`,
-      `Metode Bayar: ${
-        order.paymentMethod === 'cash'
-          ? 'Tunai (Bayar di Kasir)'
-          : order.paymentMethod === 'qris'
-          ? 'QRIS (Bayar dari Meja)'
-          : 'Transfer Bank (Bayar dari Meja)'
-      }`,
-      `Waktu: ${order.createdAt} WIB`,
-      `----------------------------`,
-      ...order.items.map(
-        (i) =>
-          `• ${i.menuItem.name} (${i.quantity}x) - ${formatRupiah(
-            i.menuItem.price * i.quantity
-          )}${i.note ? `\n  Catatan: _${i.note}_` : ''}`
-      ),
-      `----------------------------`,
-      `*Total Tagihan: ${formatRupiah(order.total)}*`,
-      order.paymentMethod === 'cash'
-        ? `Status: Menunggu Pembayaran Tunai di Kasir`
-        : `Status: LUNAS Mandiri dari Meja (Mohon segera diracik & diantar ke meja)`,
-    ];
-    return `https://wa.me/?text=${encodeURIComponent(textLines.join('\n'))}`;
   };
 
   return (
@@ -962,26 +931,14 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
               </div>
             )}
 
-            {/* Action Buttons Umum (WhatsApp & Tutup) */}
-            <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <a
-                href={getWhatsAppMessageUrl(activeOrder)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                {activeOrder.paymentMethod === 'cash'
-                  ? 'Kirim Bukti Pesanan ke Kasir via WhatsApp'
-                  : 'Kirim Notifikasi Pesanan via WhatsApp'}
-              </a>
-
+            {/* Tombol Tutup Modal */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => {
                   setActiveOrder(null);
                   setIsConfirmedPaid(false);
                 }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="w-full py-3 px-4 rounded-2xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 transition shadow-sm cursor-pointer"
               >
                 Tutup & Kembali ke Menu
               </button>

@@ -21,7 +21,6 @@ Aplikasi web modern untuk katalog menu kafe dan pemesanan mandiri dari meja (*ta
   - 💵 **Tunai / Cash (Bayar di Kasir)**:
     - Menghasilkan struk pemesanan digital (`KF-XXXX`).
     - Menampilkan detail pesanan untuk ditunjukkan ke meja kasir saat pembayaran tunai.
-    - Opsi kirim detail pesanan ke WhatsApp kasir.
   - 📱 **QRIS Mandiri (Scan Langsung di Meja)**:
     - Menampilkan kode QRIS standar nasional lengkap dengan nominal tagihan tepat.
     - Pelanggan membayar mandiri lewat m-Banking / e-Wallet (BCA, GoPay, OVO, DANA, ShopeePay).
