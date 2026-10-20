@@ -17,7 +17,11 @@ export default function AddMenuForm() {
 
     startTransition(async () => {
       try {
-        await addMenuItem(formData);
+        const res = await addMenuItem(formData);
+        if (!res.success) {
+          setErrorMsg(res.error || 'Gagal menambahkan menu baru.');
+          return;
+        }
         formRef.current?.reset();
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);

@@ -45,7 +45,11 @@ export default function EditMenuModal({ item, isOpen, onClose }: EditMenuModalPr
     setErrorMessage(null);
     startTransition(async () => {
       try {
-        await updateMenuItem(formData);
+        const res = await updateMenuItem(formData);
+        if (!res.success) {
+          setErrorMessage(res.error || 'Terjadi kesalahan saat memperbarui menu.');
+          return;
+        }
         onClose();
       } catch (err: unknown) {
         if (err instanceof Error) {

@@ -11,222 +11,302 @@ import {
 } from '@/lib/ordersStore';
 import { setItemStock, getItemStock, deleteItemStock } from '@/lib/stockStore';
 
+export interface ActionResult<T = unknown> {
+  success: boolean;
+  error?: string;
+  data?: T;
+}
+
 /**
  * Menambahkan menu baru ke database Supabase
  */
-export async function addMenuItem(formData: FormData) {
-  const supabase = await createClient();
+export async function addMenuItem(formData: FormData): Promise<ActionResult<{ id?: string }>> {
+  try {
+    const supabase = await createClient();
 
-  const name = formData.get('name')?.toString().trim();
-  const category = formData.get('category')?.toString().trim();
-  const priceRaw = formData.get('price')?.toString().trim();
-  const stockRaw = formData.get('stock')?.toString().trim();
-  const isReadyRaw = formData.get('is_ready')?.toString().trim();
+    const name = formData.get('name')?.toString().trim();
+    const category = formData.get('category')?.toString().trim();
+    const priceRaw = formData.get('price')?.toString().trim();
+    const stockRaw = formData.get('stock')?.toString().trim();
+    const isReadyRaw = formData.get('is_ready')?.toString().trim();
 
-  if (!name || !category || !priceRaw) {
-    throw new Error('Nama, kategori, dan harga menu wajib diisi.');
-  }
+    if (!name || !category || !priceRaw) {
+      return { success: false, error: 'Nama, kategori, dan harga menu wajib diisi.' };
+    }
 
-  const price = parseFloat(priceRaw);
-  if (isNaN(price) || price < 0) {
-    throw new Error('Harga harus berupa angka valid dan tidak negatif.');
-  }
+    const price = parseFloat(priceRaw);
+    if (isNaN(price) || price < 0) {
+      return { success: false, error: 'Harga harus berupa angka valid dan tidak negatif.' };
+    }
 
-  const stock = stockRaw ? parseInt(stockRaw, 10) : 20;
-  const is_ready = isReadyRaw !== undefined ? isReadyRaw === 'true' : stock > 0;
+    const stock = stockRaw ? parseInt(stockRaw, 10) : 20;
+    const is_ready = isReadyRaw !== undefined ? isReadyRaw === 'true' : stock > 0;
 
-  // Mencoba insert dengan kolom stock & is_ready
-  let { data, error } = await supabase.from('menu_items').insert([
-    {
-      name,
-      category,
-      price,
-      stock: isNaN(stock) ? 20 : Math.max(0, stock),
-      is_ready: stock === 0 ? false : is_ready,
-    },
-  ]).select('id').single();
-
-  // Fallback jika kolom 'stock' belum ditambahkan ke schema Supabase
-  if (error && error.code === 'PGRST204') {
-    const fallback = await supabase.from('menu_items').insert([
+    // Mencoba insert dengan kolom stock & is_ready
+    let { data, error } = await supabase.from('menu_items').insert([
       {
         name,
         category,
         price,
-        is_ready,
+        stock: isNaN(stock) ? 20 : Math.max(0, stock),
+        is_ready: stock === 0 ? false : is_ready,
       },
     ]).select('id').single();
-    error = fallback.error;
-    data = fallback.data;
-  }
 
-  if (error) {
-    console.error('Gagal menambahkan menu:', error);
-    throw new Error(`Gagal menambahkan menu: ${error.message}`);
-  }
+    // Fallback jika kolom 'stock' belum ditambahkan ke schema Supabase (PGRST204)
+    if (error && (error.code === 'PGRST204' || error.message?.includes('stock'))) {
+      const fallback = await supabase.from('menu_items').insert([
+        {
+          name,
+          category,
+          price,
+          is_ready,
+        },
+      ]).select('id').single();
+      error = fallback.error;
+      data = fallback.data;
+    }
 
-  if (data?.id) {
-    setItemStock(data.id, isNaN(stock) ? 20 : Math.max(0, stock));
-  }
+    if (error) {
+      console.error('Gagal menambahkan menu:', error);
+      if (error.code === '42501' || error.message?.includes('row-level security')) {
+        return {
+          success: false,
+          error: 'Akses ditolak oleh Row Level Security (RLS) Supabase pada tabel "menu_items". Mohon jalankan skrip fix_menu_items_rls.sql di SQL Editor Supabase untuk mengizinkan staf menambah menu.',
+        };
+      }
+      return { success: false, error: `Gagal menambahkan menu: ${error.message}` };
+    }
 
-  revalidatePath('/');
-  revalidatePath('/dashboard');
+    if (data?.id) {
+      setItemStock(data.id, isNaN(stock) ? 20 : Math.max(0, stock));
+    }
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    return { success: true, data: { id: data?.id } };
+  } catch (err: unknown) {
+    console.error('Error in addMenuItem action:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat menambahkan menu.',
+    };
+  }
 }
 
 /**
  * Mengubah data menu berdasarkan ID (termasuk Nama, Kategori, Harga, Status Stok, dan Jumlah Stok)
  */
-export async function updateMenuItem(formData: FormData) {
-  const supabase = await createClient();
+export async function updateMenuItem(formData: FormData): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
 
-  const id = formData.get('id')?.toString().trim();
-  const name = formData.get('name')?.toString().trim();
-  const category = formData.get('category')?.toString().trim();
-  const priceRaw = formData.get('price')?.toString().trim();
-  const stockRaw = formData.get('stock')?.toString().trim();
-  const isReadyRaw = formData.get('is_ready')?.toString().trim();
+    const id = formData.get('id')?.toString().trim();
+    const name = formData.get('name')?.toString().trim();
+    const category = formData.get('category')?.toString().trim();
+    const priceRaw = formData.get('price')?.toString().trim();
+    const stockRaw = formData.get('stock')?.toString().trim();
+    const isReadyRaw = formData.get('is_ready')?.toString().trim();
 
-  if (!id || !name || !category || !priceRaw) {
-    throw new Error('Data pembaruan tidak lengkap.');
-  }
-
-  const price = parseFloat(priceRaw);
-  if (isNaN(price) || price < 0) {
-    throw new Error('Harga harus berupa angka valid dan tidak negatif.');
-  }
-
-  // Tentukan status ketersediaan dan jumlah stok
-  const stock = stockRaw ? parseInt(stockRaw, 10) : undefined;
-  const is_ready = isReadyRaw !== undefined ? isReadyRaw === 'true' : true;
-
-  // Siapkan payload update
-  const payload: Record<string, unknown> = {
-    name,
-    category,
-    price,
-    is_ready,
-  };
-
-  if (stock !== undefined && !isNaN(stock)) {
-    payload.stock = Math.max(0, stock);
-    // Jika stok 0, otomatis status menjadi tidak ready (Habis)
-    if (payload.stock === 0) {
-      payload.is_ready = false;
+    if (!id || !name || !category || !priceRaw) {
+      return { success: false, error: 'Data pembaruan tidak lengkap.' };
     }
-  }
 
-  // Coba update data lengkap
-  let { error } = await supabase
-    .from('menu_items')
-    .update(payload)
-    .eq('id', id);
+    const price = parseFloat(priceRaw);
+    if (isNaN(price) || price < 0) {
+      return { success: false, error: 'Harga harus berupa angka valid dan tidak negatif.' };
+    }
 
-  // Jika kolom 'stock' belum ada di database (PGRST204), update tanpa field 'stock'
-  if (error && error.code === 'PGRST204') {
-    delete payload.stock;
-    const fallback = await supabase
+    const stock = stockRaw ? parseInt(stockRaw, 10) : undefined;
+    const is_ready = isReadyRaw !== undefined ? isReadyRaw === 'true' : true;
+
+    // Siapkan payload update
+    const payload: Record<string, unknown> = {
+      name,
+      category,
+      price,
+      is_ready,
+    };
+
+    if (stock !== undefined && !isNaN(stock)) {
+      payload.stock = Math.max(0, stock);
+      // Jika stok 0, otomatis status menjadi tidak ready (Habis)
+      if (payload.stock === 0) {
+        payload.is_ready = false;
+      }
+    }
+
+    // Coba update data lengkap
+    let { error } = await supabase
       .from('menu_items')
       .update(payload)
       .eq('id', id);
-    error = fallback.error;
-  }
 
-  if (error) {
-    console.error('Gagal memperbarui menu:', error);
-    throw new Error(`Gagal memperbarui menu: ${error.message}`);
-  }
+    // Jika kolom 'stock' belum ada di database (PGRST204), update tanpa field 'stock'
+    if (error && (error.code === 'PGRST204' || error.message?.includes('stock'))) {
+      delete payload.stock;
+      const fallback = await supabase
+        .from('menu_items')
+        .update(payload)
+        .eq('id', id);
+      error = fallback.error;
+    }
 
-  if (stock !== undefined && !isNaN(stock)) {
-    setItemStock(id, Math.max(0, stock));
-  }
+    if (error) {
+      console.error('Gagal memperbarui menu:', error);
+      if (error.code === '42501' || error.message?.includes('row-level security')) {
+        return {
+          success: false,
+          error: 'Akses ditolak oleh RLS Supabase. Mohon jalankan skrip fix_menu_items_rls.sql di SQL Editor Supabase.',
+        };
+      }
+      return { success: false, error: `Gagal memperbarui menu: ${error.message}` };
+    }
 
-  revalidatePath('/');
-  revalidatePath('/dashboard');
+    if (stock !== undefined && !isNaN(stock)) {
+      setItemStock(id, Math.max(0, stock));
+    }
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Error in updateMenuItem action:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat memperbarui menu.',
+    };
+  }
 }
 
 /**
  * Mengubah cepat jumlah stok (misal: tombol + / - stok)
  */
-export async function updateMenuStock(id: string, newStock: number) {
-  const supabase = await createClient();
-  const stock = Math.max(0, newStock);
-  const is_ready = stock > 0;
+export async function updateMenuStock(id: string, newStock: number): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const stock = Math.max(0, newStock);
+    const is_ready = stock > 0;
 
-  let { error } = await supabase
-    .from('menu_items')
-    .update({ stock, is_ready })
-    .eq('id', id);
-
-  // Fallback jika kolom stock belum ada di tabel Supabase
-  if (error && error.code === 'PGRST204') {
-    const fallback = await supabase
+    let { error } = await supabase
       .from('menu_items')
-      .update({ is_ready })
+      .update({ stock, is_ready })
       .eq('id', id);
-    error = fallback.error;
+
+    // Fallback jika kolom stock belum ada di tabel Supabase
+    if (error && (error.code === 'PGRST204' || error.message?.includes('stock'))) {
+      const fallback = await supabase
+        .from('menu_items')
+        .update({ is_ready })
+        .eq('id', id);
+      error = fallback.error;
+    }
+
+    if (error) {
+      console.error('Gagal memperbarui stok:', error);
+      if (error.code === '42501' || error.message?.includes('row-level security')) {
+        return {
+          success: false,
+          error: 'Akses ditolak oleh RLS Supabase. Jalankan skrip fix_menu_items_rls.sql di Supabase SQL Editor.',
+        };
+      }
+      return { success: false, error: `Gagal memperbarui stok: ${error.message}` };
+    }
+
+    setItemStock(id, stock);
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Error in updateMenuStock action:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat memperbarui stok.',
+    };
   }
-
-  if (error) {
-    console.error('Gagal memperbarui stok:', error);
-    throw new Error(`Gagal memperbarui stok: ${error.message}`);
-  }
-
-  setItemStock(id, stock);
-
-  revalidatePath('/');
-  revalidatePath('/dashboard');
 }
 
 /**
  * Mengubah status ketersediaan menu (Ready / Habis)
  */
-export async function toggleMenuStatus(id: string, currentStatus: boolean) {
-  const supabase = await createClient();
-  const nextStatus = !currentStatus;
+export async function toggleMenuStatus(id: string, currentStatus: boolean): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const nextStatus = !currentStatus;
 
-  const payload: Record<string, unknown> = { is_ready: nextStatus };
+    const payload: Record<string, unknown> = { is_ready: nextStatus };
 
-  let { error } = await supabase
-    .from('menu_items')
-    .update(payload)
-    .eq('id', id);
+    let { error } = await supabase
+      .from('menu_items')
+      .update(payload)
+      .eq('id', id);
 
-  if (error) {
-    console.error('Gagal mengubah status menu:', error);
-    throw new Error(`Gagal mengubah status menu: ${error.message}`);
+    if (error) {
+      console.error('Gagal mengubah status menu:', error);
+      if (error.code === '42501' || error.message?.includes('row-level security')) {
+        return {
+          success: false,
+          error: 'Akses ditolak oleh RLS Supabase. Jalankan skrip fix_menu_items_rls.sql di Supabase SQL Editor.',
+        };
+      }
+      return { success: false, error: `Gagal mengubah status menu: ${error.message}` };
+    }
+
+    if (!nextStatus) {
+      setItemStock(id, 0);
+    } else {
+      const current = getItemStock(id, false);
+      if (current === 0) setItemStock(id, 20);
+    }
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Error in toggleMenuStatus action:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat mengubah status menu.',
+    };
   }
-
-  if (!nextStatus) {
-    setItemStock(id, 0);
-  } else {
-    const current = getItemStock(id, false);
-    if (current === 0) setItemStock(id, 20);
-  }
-
-  revalidatePath('/');
-  revalidatePath('/dashboard');
 }
 
 /**
  * Menghapus menu dari database berdasarkan ID
  */
-export async function deleteMenuItem(id: string) {
-  const supabase = await createClient();
+export async function deleteMenuItem(id: string): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
 
-  const { error } = await supabase
-    .from('menu_items')
-    .delete()
-    .eq('id', id);
+    const { error } = await supabase
+      .from('menu_items')
+      .delete()
+      .eq('id', id);
 
-  if (error) {
-    console.error('Gagal menghapus menu:', error);
-    throw new Error(`Gagal menghapus menu: ${error.message}`);
+    if (error) {
+      console.error('Gagal menghapus menu:', error);
+      if (error.code === '42501' || error.message?.includes('row-level security')) {
+        return {
+          success: false,
+          error: 'Akses ditolak oleh RLS Supabase. Jalankan skrip fix_menu_items_rls.sql di Supabase SQL Editor.',
+        };
+      }
+      return { success: false, error: `Gagal menghapus menu: ${error.message}` };
+    }
+
+    deleteItemStock(id);
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Error in deleteMenuItem action:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat menghapus menu.',
+    };
   }
-
-  deleteItemStock(id);
-
-  revalidatePath('/');
-  revalidatePath('/dashboard');
 }
 
 /**

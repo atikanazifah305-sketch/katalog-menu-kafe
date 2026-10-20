@@ -1,9 +1,16 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { MenuItem } from '@/types/menu';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+// Gunakan folder data lokal atau fallback ke os.tmpdir() jika filesystem root read-only (misal di Vercel)
+const DATA_DIR = process.env.VERCEL || process.env.NODE_ENV === 'production'
+  ? path.join(os.tmpdir(), 'cafe_data')
+  : path.join(process.cwd(), 'data');
 const STOCKS_FILE = path.join(DATA_DIR, 'menu_stocks.json');
+
+// In-memory fallback jika file system gagal atau read-only
+let memoryFallbackStocks: Record<string, number> = {};
 
 function ensureDataFile() {
   try {
@@ -13,8 +20,8 @@ function ensureDataFile() {
     if (!fs.existsSync(STOCKS_FILE)) {
       fs.writeFileSync(STOCKS_FILE, JSON.stringify({}, null, 2), 'utf-8');
     }
-  } catch (err) {
-    console.error('Error creating data directory/file:', err);
+  } catch {
+    // Abaikan jika read-only, otomatis gunakan in-memory
   }
 }
 
@@ -23,20 +30,23 @@ function loadStocksFromFile(): Record<string, number> {
     ensureDataFile();
     if (fs.existsSync(STOCKS_FILE)) {
       const content = fs.readFileSync(STOCKS_FILE, 'utf-8');
-      return JSON.parse(content || '{}');
+      const parsed = JSON.parse(content || '{}');
+      memoryFallbackStocks = { ...memoryFallbackStocks, ...parsed };
+      return memoryFallbackStocks;
     }
-  } catch (err) {
-    console.error('Error reading stocks from file:', err);
+  } catch {
+    // fallback ke memory
   }
-  return {};
+  return memoryFallbackStocks;
 }
 
 function saveStocksToFile(stocks: Record<string, number>) {
+  memoryFallbackStocks = { ...stocks };
   try {
     ensureDataFile();
     fs.writeFileSync(STOCKS_FILE, JSON.stringify(stocks, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing stocks to file:', err);
+  } catch {
+    // fallback ke memory
   }
 }
 

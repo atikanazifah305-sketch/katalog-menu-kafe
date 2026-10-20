@@ -135,7 +135,11 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
     setPendingActionId(item.id);
     startTransition(async () => {
       try {
-        await toggleMenuStatus(item.id, item.is_ready);
+        const res = await toggleMenuStatus(item.id, item.is_ready);
+        if (!res.success) {
+          setItems(initialItems);
+          alert(res.error || 'Gagal memperbarui status');
+        }
       } catch (err: unknown) {
         setItems(initialItems);
         alert(err instanceof Error ? err.message : 'Gagal memperbarui status');
@@ -158,7 +162,11 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
     setPendingActionId(item.id);
     startTransition(async () => {
       try {
-        await updateMenuStock(item.id, newStock);
+        const res = await updateMenuStock(item.id, newStock);
+        if (!res.success) {
+          setItems(initialItems);
+          alert(res.error || 'Gagal memperbarui stok');
+        }
       } catch (err: unknown) {
         setItems(initialItems);
         alert(err instanceof Error ? err.message : 'Gagal memperbarui stok');
@@ -180,7 +188,11 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
     setPendingActionId(item.id);
     startTransition(async () => {
       try {
-        await deleteMenuItem(item.id);
+        const res = await deleteMenuItem(item.id);
+        if (!res.success) {
+          setItems(initialItems);
+          alert(res.error || 'Gagal menghapus menu');
+        }
       } catch (err: unknown) {
         setItems(initialItems);
         alert(err instanceof Error ? err.message : 'Gagal menghapus menu');
