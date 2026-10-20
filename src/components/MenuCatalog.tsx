@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { MenuItem } from '@/types/menu';
 import { toggleMenuStatus, deleteMenuItem, updateMenuStock } from '@/app/actions';
 import EditMenuModal from './EditMenuModal';
@@ -17,10 +17,10 @@ import {
   Loader2, 
   LayoutGrid, 
   Table as TableIcon,
-  Tag,
-  AlertCircle,
-  Plus,
-  Minus,
+  Tag, 
+  AlertCircle, 
+  Plus, 
+  Minus, 
   Box
 } from 'lucide-react';
 
@@ -29,10 +29,16 @@ interface MenuCatalogProps {
 }
 
 export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
+  const [items, setItems] = useState<MenuItem[]>(initialItems);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   
+  // Sinkronkan state lokal setiap kali server revalidate initialItems
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
+
   // State untuk modal edit
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -82,13 +88,21 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
     }
   };
 
-  // Handler toggle status ketersediaan
+  // Handler toggle status ketersediaan (dengan Optimistic Update instan)
   const handleToggleStatus = (item: MenuItem) => {
+    const nextStatus = !item.is_ready;
+    const nextStock = nextStatus ? (item.stock && item.stock > 0 ? item.stock : 20) : 0;
+
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, is_ready: nextStatus, stock: nextStock } : i))
+    );
+
     setPendingActionId(item.id);
     startTransition(async () => {
       try {
         await toggleMenuStatus(item.id, item.is_ready);
       } catch (err: unknown) {
+        setItems(initialItems);
         alert(err instanceof Error ? err.message : 'Gagal memperbarui status');
       } finally {
         setPendingActionId(null);
@@ -96,16 +110,22 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
     });
   };
 
-  // Handler ubah cepat stok (+ / -)
+  // Handler ubah cepat stok (+ / -) (dengan Optimistic Update instan)
   const handleQuickStock = (item: MenuItem, delta: number) => {
-    const currentStock = item.stock !== undefined ? item.stock : (item.is_ready ? 10 : 0);
+    const currentStock = typeof item.stock === 'number' ? item.stock : (item.is_ready ? 20 : 0);
     const newStock = Math.max(0, currentStock + delta);
+    const nextIsReady = newStock > 0;
+
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, stock: newStock, is_ready: nextIsReady } : i))
+    );
 
     setPendingActionId(item.id);
     startTransition(async () => {
       try {
         await updateMenuStock(item.id, newStock);
       } catch (err: unknown) {
+        setItems(initialItems);
         alert(err instanceof Error ? err.message : 'Gagal memperbarui stok');
       } finally {
         setPendingActionId(null);
@@ -113,18 +133,21 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
     });
   };
 
-  // Handler hapus menu dengan konfirmasi sederhana
+  // Handler hapus menu dengan konfirmasi sederhana (dengan Optimistic Update)
   const handleDelete = (item: MenuItem) => {
     const isConfirmed = window.confirm(
       `Apakah Anda yakin ingin menghapus "${item.name}" dari katalog menu?`
     );
     if (!isConfirmed) return;
 
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+
     setPendingActionId(item.id);
     startTransition(async () => {
       try {
         await deleteMenuItem(item.id);
       } catch (err: unknown) {
+        setItems(initialItems);
         alert(err instanceof Error ? err.message : 'Gagal menghapus menu');
       } finally {
         setPendingActionId(null);
@@ -139,7 +162,7 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
   };
 
   // Filter items
-  const filteredItems = initialItems.filter((item) => {
+  const filteredItems = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'Semua' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -228,7 +251,7 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredItems.map((item) => {
             const isProcessing = pendingActionId === item.id;
-            const itemStock = item.stock !== undefined ? item.stock : (item.is_ready ? 10 : 0);
+            const itemStock = typeof item.stock === 'number' ? item.stock : (item.is_ready ? 20 : 0);
 
             return (
               <div
@@ -283,13 +306,21 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                     {formatRupiah(item.price)}
                   </div>
 
-                  {/* Panel Stok Interaktif dengan Stepper +/- */}
+                  {/* Panel Stok Interaktif dengan Stepper +/- dan angka pasti */}
                   <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-                      <Box className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="font-medium">Stok:</span>
-                      <span className={`font-bold ${item.is_ready ? 'text-slate-900 dark:text-white' : 'text-rose-500'}`}>
-                        {item.stock !== undefined ? `${item.stock} porsi` : (item.is_ready ? 'Tersedia' : 'Kosong')}
+                      <Box className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span className="font-semibold text-slate-500 dark:text-slate-400">Stok:</span>
+                      <span
+                        className={`font-bold px-2 py-0.5 rounded-lg text-xs ${
+                          itemStock > 5
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                            : itemStock > 0
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
+                            : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30'
+                        }`}
+                      >
+                        {itemStock} porsi
                       </span>
                     </div>
 
@@ -297,18 +328,18 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                       <button
                         onClick={() => handleQuickStock(item, -1)}
                         disabled={isProcessing || itemStock <= 0}
-                        title="Kurangi stok 1"
+                        title="Kurangi stok 1 porsi"
                         className="p-1 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 disabled:opacity-30 transition cursor-pointer"
                       >
-                        <Minus className="w-3 h-3" />
+                        <Minus className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleQuickStock(item, 1)}
                         disabled={isProcessing}
-                        title="Tambah stok 1"
+                        title="Tambah stok 1 porsi"
                         className="p-1 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 disabled:opacity-30 transition cursor-pointer"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -355,7 +386,7 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
                 {filteredItems.map((item) => {
                   const isProcessing = pendingActionId === item.id;
-                  const itemStock = item.stock !== undefined ? item.stock : (item.is_ready ? 10 : 0);
+                  const itemStock = typeof item.stock === 'number' ? item.stock : (item.is_ready ? 20 : 0);
 
                   return (
                     <tr
@@ -384,20 +415,28 @@ export default function MenuCatalog({ initialItems }: MenuCatalogProps) {
                             onClick={() => handleQuickStock(item, -1)}
                             disabled={isProcessing || itemStock <= 0}
                             className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
-                            title="Kurang 1"
+                            title="Kurang 1 porsi"
                           >
-                            <Minus className="w-3 h-3 text-slate-600 dark:text-slate-300" />
+                            <Minus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                           </button>
-                          <span className="text-xs font-bold min-w-8 text-center text-slate-800 dark:text-slate-200">
-                            {item.stock !== undefined ? item.stock : (item.is_ready ? 'Ready' : '0')}
+                          <span
+                            className={`text-xs font-bold min-w-16 text-center px-2 py-0.5 rounded-md ${
+                              itemStock > 5
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                                : itemStock > 0
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                                : 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
+                            }`}
+                          >
+                            {itemStock} porsi
                           </span>
                           <button
                             onClick={() => handleQuickStock(item, 1)}
                             disabled={isProcessing}
                             className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
-                            title="Tambah 1"
+                            title="Tambah 1 porsi"
                           >
-                            <Plus className="w-3 h-3 text-slate-600 dark:text-slate-300" />
+                            <Plus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                           </button>
                         </div>
                       </td>

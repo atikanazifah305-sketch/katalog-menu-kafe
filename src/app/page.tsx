@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { MenuItem } from '@/types/menu';
+import { mergeStockWithMenuItems } from '@/lib/stockStore';
 import CustomerMenu from '@/components/CustomerMenu';
 import Link from 'next/link';
 import { 
@@ -37,7 +38,7 @@ export default async function CustomerHomePage() {
     if (error) {
       fetchError = error.message;
     } else {
-      menuItems = data || [];
+      menuItems = mergeStockWithMenuItems(data || []);
     }
   } catch (err: unknown) {
     if (err instanceof Error) {

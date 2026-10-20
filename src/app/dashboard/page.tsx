@@ -5,6 +5,7 @@ import AddMenuForm from '@/components/AddMenuForm';
 import MenuCatalog from '@/components/MenuCatalog';
 import StaffOrdersManager from '@/components/StaffOrdersManager';
 import { getAllOrders } from '@/lib/ordersStore';
+import { mergeStockWithMenuItems } from '@/lib/stockStore';
 import { signout } from '@/app/auth/actions';
 import Link from 'next/link';
 import { 
@@ -17,7 +18,8 @@ import {
   LogOut,
   User as UserIcon,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Box
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -52,7 +54,7 @@ export default async function StaffDashboardPage() {
     if (error) {
       fetchError = error.message;
     } else {
-      menuItems = data || [];
+      menuItems = mergeStockWithMenuItems(data || []);
     }
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -66,6 +68,7 @@ export default async function StaffDashboardPage() {
   const totalMenu = menuItems.length;
   const readyMenu = menuItems.filter((item) => item.is_ready).length;
   const outOfStockMenu = menuItems.filter((item) => !item.is_ready).length;
+  const totalStockUnits = menuItems.reduce((acc, curr) => acc + (curr.stock || 0), 0);
   const avgPrice =
     totalMenu > 0
       ? Math.round(menuItems.reduce((acc, curr) => acc + Number(curr.price || 0), 0) / totalMenu)
@@ -172,7 +175,7 @@ export default async function StaffDashboardPage() {
         )}
 
         {/* Ringkasan Statistik Menu Staf */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
               <Database className="w-5 h-5" />
@@ -205,11 +208,21 @@ export default async function StaffDashboardPage() {
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Box className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Unit Stok</p>
+              <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{totalStockUnits} porsi</p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5 col-span-2 sm:col-span-1">
+            <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
               <DollarSign className="w-5 h-5" />
             </div>
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Rata-rata Harga</p>
-              <p className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
+              <p className="text-base font-bold text-slate-900 dark:text-white truncate">
                 {formatRupiah(avgPrice)}
               </p>
             </div>

@@ -9,6 +9,7 @@ import {
   getOrderById, 
   updateOrderStatus 
 } from '@/lib/ordersStore';
+import { setItemStock, getItemStock, deleteItemStock } from '@/lib/stockStore';
 
 /**
  * Menambahkan menu baru ke database Supabase
@@ -35,7 +36,7 @@ export async function addMenuItem(formData: FormData) {
   const is_ready = isReadyRaw !== undefined ? isReadyRaw === 'true' : stock > 0;
 
   // Mencoba insert dengan kolom stock & is_ready
-  let { error } = await supabase.from('menu_items').insert([
+  let { data, error } = await supabase.from('menu_items').insert([
     {
       name,
       category,
@@ -43,7 +44,7 @@ export async function addMenuItem(formData: FormData) {
       stock: isNaN(stock) ? 20 : Math.max(0, stock),
       is_ready: stock === 0 ? false : is_ready,
     },
-  ]);
+  ]).select('id').single();
 
   // Fallback jika kolom 'stock' belum ditambahkan ke schema Supabase
   if (error && error.code === 'PGRST204') {
@@ -54,8 +55,9 @@ export async function addMenuItem(formData: FormData) {
         price,
         is_ready,
       },
-    ]);
+    ]).select('id').single();
     error = fallback.error;
+    data = fallback.data;
   }
 
   if (error) {
@@ -63,7 +65,12 @@ export async function addMenuItem(formData: FormData) {
     throw new Error(`Gagal menambahkan menu: ${error.message}`);
   }
 
+  if (data?.id) {
+    setItemStock(data.id, isNaN(stock) ? 20 : Math.max(0, stock));
+  }
+
   revalidatePath('/');
+  revalidatePath('/dashboard');
 }
 
 /**
@@ -129,7 +136,12 @@ export async function updateMenuItem(formData: FormData) {
     throw new Error(`Gagal memperbarui menu: ${error.message}`);
   }
 
+  if (stock !== undefined && !isNaN(stock)) {
+    setItemStock(id, Math.max(0, stock));
+  }
+
   revalidatePath('/');
+  revalidatePath('/dashboard');
 }
 
 /**
@@ -159,7 +171,10 @@ export async function updateMenuStock(id: string, newStock: number) {
     throw new Error(`Gagal memperbarui stok: ${error.message}`);
   }
 
+  setItemStock(id, stock);
+
   revalidatePath('/');
+  revalidatePath('/dashboard');
 }
 
 /**
@@ -181,7 +196,15 @@ export async function toggleMenuStatus(id: string, currentStatus: boolean) {
     throw new Error(`Gagal mengubah status menu: ${error.message}`);
   }
 
+  if (!nextStatus) {
+    setItemStock(id, 0);
+  } else {
+    const current = getItemStock(id, false);
+    if (current === 0) setItemStock(id, 20);
+  }
+
   revalidatePath('/');
+  revalidatePath('/dashboard');
 }
 
 /**
@@ -200,7 +223,10 @@ export async function deleteMenuItem(id: string) {
     throw new Error(`Gagal menghapus menu: ${error.message}`);
   }
 
+  deleteItemStock(id);
+
   revalidatePath('/');
+  revalidatePath('/dashboard');
 }
 
 /**
