@@ -66,8 +66,12 @@ export default async function StaffDashboardPage() {
 
   // Statistik Ringkasan Menu untuk Staf
   const totalMenu = menuItems.length;
-  const readyMenu = menuItems.filter((item) => item.is_ready).length;
-  const outOfStockMenu = menuItems.filter((item) => !item.is_ready).length;
+  const readyMenu = menuItems.filter((item) => item.is_ready && (item.stock === undefined || item.stock > 0)).length;
+  const lowStockMenu = menuItems.filter((item) => {
+    const s = typeof item.stock === 'number' ? item.stock : (item.is_ready ? 20 : 0);
+    return item.is_ready && s >= 1 && s <= 5;
+  }).length;
+  const outOfStockMenu = menuItems.filter((item) => !item.is_ready || item.stock === 0).length;
   const totalStockUnits = menuItems.reduce((acc, curr) => acc + (curr.stock || 0), 0);
   const avgPrice =
     totalMenu > 0
@@ -175,7 +179,7 @@ export default async function StaffDashboardPage() {
         )}
 
         {/* Ringkasan Statistik Menu Staf */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
               <Database className="w-5 h-5" />
@@ -216,7 +220,7 @@ export default async function StaffDashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5 col-span-2 sm:col-span-1">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
               <DollarSign className="w-5 h-5" />
             </div>
@@ -225,6 +229,21 @@ export default async function StaffDashboardPage() {
               <p className="text-base font-bold text-slate-900 dark:text-white truncate">
                 {formatRupiah(avgPrice)}
               </p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Menipis</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{lowStockMenu}</p>
+                <span className="text-[10px] font-semibold text-amber-600/80 dark:text-amber-400/80 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                  1-5 porsi
+                </span>
+              </div>
             </div>
           </div>
         </section>
