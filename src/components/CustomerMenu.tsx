@@ -77,17 +77,10 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
   const [isCopied, setIsCopied] = useState<string | null>(null);
   const [isConfirmedPaid, setIsConfirmedPaid] = useState(false);
 
-  // State Riwayat Pesanan di LocalStorage
-  const [orderHistory, setOrderHistory] = useState<OrderRecord[]>([]);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-
-  // Load history from localStorage on mount
+  // Bersihkan riwayat tersimpan lama jika ada
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('cafe_customer_orders');
-      if (saved) {
-        setOrderHistory(JSON.parse(saved));
-      }
+      localStorage.removeItem('cafe_customer_orders');
     } catch {
       // ignore
     }
@@ -105,20 +98,10 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
         const res = await checkOrderStatusAction(activeOrder.orderId);
         if (res && res.status) {
           if (res.status === 'verified_paid' || res.status === 'completed') {
-            setActiveOrder((prev) => {
-              if (!prev) return null;
-              const updated: OrderRecord = { ...prev, paymentStatus: 'verified_paid' };
-              saveOrderToHistory(updated);
-              return updated;
-            });
+            setActiveOrder((prev) => prev ? { ...prev, paymentStatus: 'verified_paid' } : null);
             setIsConfirmedPaid(true);
           } else if (res.status === 'cancelled') {
-            setActiveOrder((prev) => {
-              if (!prev) return null;
-              const updated: OrderRecord = { ...prev, paymentStatus: 'cancelled' };
-              saveOrderToHistory(updated);
-              return updated;
-            });
+            setActiveOrder((prev) => prev ? { ...prev, paymentStatus: 'cancelled' } : null);
           }
         }
       } catch {
@@ -128,17 +111,6 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
 
     return () => clearInterval(interval);
   }, [activeOrder]);
-
-  // Save history to localStorage
-  const saveOrderToHistory = (order: OrderRecord) => {
-    try {
-      const updated = [order, ...orderHistory].slice(0, 10);
-      setOrderHistory(updated);
-      localStorage.setItem('cafe_customer_orders', JSON.stringify(updated));
-    } catch {
-      // ignore
-    }
-  };
 
   // Helper format rupiah
   const formatRupiah = (amount: number) => {
@@ -244,7 +216,6 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
       createdAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    saveOrderToHistory(newOrder);
     setActiveOrder(newOrder);
     setIsConfirmedPaid(false);
     setCart([]);
@@ -294,7 +265,7 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
           ))}
         </div>
 
-        {/* Search Bar & Riwayat Pesanan Button */}
+        {/* Search Bar */}
         <div className="flex items-center gap-2.5">
           <div className="relative flex-1 md:w-64">
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
@@ -306,20 +277,6 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
               className="w-full pl-10 pr-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
             />
           </div>
-
-          {orderHistory.length > 0 && (
-            <button
-              onClick={() => setIsHistoryOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-bold hover:bg-amber-500/20 transition cursor-pointer"
-              title="Lihat riwayat pesanan meja Anda"
-            >
-              <Receipt className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span className="hidden sm:inline">Pesanan Saya</span>
-              <span className="w-4 h-4 rounded-full bg-amber-600 text-white text-[10px] flex items-center justify-center font-bold">
-                {orderHistory.length}
-              </span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -1335,73 +1292,6 @@ export default function CustomerMenu({ initialItems }: CustomerMenuProps) {
                 Tutup & Kembali ke Menu
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          DRAWER RIWAYAT PESANAN SAYA (Pelanggan bisa cek status sewaktu-waktu)
-          ========================================================================= */}
-      {isHistoryOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div
-            className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                <h3 className="text-base font-bold text-slate-800 dark:text-white">
-                  Riwayat Pesanan Meja Saya
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsHistoryOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {orderHistory.map((order) => (
-                <div
-                  key={order.orderId}
-                  className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2 cursor-pointer hover:border-amber-500 transition"
-                  onClick={() => {
-                    setActiveOrder(order);
-                    setIsConfirmedPaid(order.paymentMethod !== 'cash');
-                    setIsHistoryOpen(false);
-                  }}
-                >
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-900 dark:text-white">{order.orderId}</span>
-                    <span className="text-amber-600 dark:text-amber-400">{formatRupiah(order.total)}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{order.table} • {order.items.length} item</span>
-                    <span>{order.createdAt} WIB</span>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-700 text-[10px]">
-                    <span className="font-semibold text-slate-600 dark:text-slate-400">
-                      {order.paymentMethod === 'cash' ? '💵 Bayar di Kasir' : order.paymentMethod === 'qris' ? '📱 QRIS Mandiri' : '🏦 Transfer Bank'}
-                    </span>
-                    <span className="font-bold text-amber-600 dark:text-amber-400">
-                      Klik untuk Buka Struk ➔
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setIsHistoryOpen(false)}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-            >
-              Tutup Riwayat
-            </button>
           </div>
         </div>
       )}
