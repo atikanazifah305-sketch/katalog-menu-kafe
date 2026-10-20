@@ -1,26 +1,18 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { MenuItem } from '@/types/menu';
-import AddMenuForm from '@/components/AddMenuForm';
-import MenuCatalog from '@/components/MenuCatalog';
-import StaffOrdersManager from '@/components/StaffOrdersManager';
+import DashboardViewSwitcher from '@/components/DashboardViewSwitcher';
 import { getAllOrders } from '@/lib/ordersStore';
 import { mergeStockWithMenuItems } from '@/lib/stockStore';
 import { signout } from '@/app/auth/actions';
-import TableQrGenerator from '@/components/TableQrGenerator';
 import Link from 'next/link';
 import { 
   Coffee, 
-  CheckCircle2, 
-  XCircle, 
-  DollarSign, 
-  Database, 
   AlertTriangle, 
   LogOut,
   User as UserIcon,
   ExternalLink,
-  ShieldCheck,
-  Box
+  ShieldCheck
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -64,28 +56,6 @@ export default async function StaffDashboardPage() {
       fetchError = 'Gagal terhubung ke Supabase. Periksa konfigurasi .env.local Anda.';
     }
   }
-
-  // Statistik Ringkasan Menu untuk Staf
-  const totalMenu = menuItems.length;
-  const readyMenu = menuItems.filter((item) => item.is_ready && (item.stock === undefined || item.stock > 0)).length;
-  const lowStockMenu = menuItems.filter((item) => {
-    const s = typeof item.stock === 'number' ? item.stock : (item.is_ready ? 20 : 0);
-    return item.is_ready && s >= 1 && s <= 5;
-  }).length;
-  const outOfStockMenu = menuItems.filter((item) => !item.is_ready || item.stock === 0).length;
-  const totalStockUnits = menuItems.reduce((acc, curr) => acc + (curr.stock || 0), 0);
-  const avgPrice =
-    totalMenu > 0
-      ? Math.round(menuItems.reduce((acc, curr) => acc + Number(curr.price || 0), 0) / totalMenu)
-      : 0;
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   const displayName = user.user_metadata?.full_name || 'Staf Karyawan';
   const initialOrders = await getAllOrders();
@@ -179,103 +149,11 @@ export default async function StaffDashboardPage() {
           </div>
         )}
 
-        {/* Ringkasan Statistik Menu Staf */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-              <Database className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Menu</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">{totalMenu}</p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Menu Ready</p>
-              <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{readyMenu}</p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-              <XCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Habis</p>
-              <p className="text-xl font-bold text-rose-600 dark:text-rose-400">{outOfStockMenu}</p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <Box className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Unit Stok</p>
-              <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{totalStockUnits} porsi</p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Rata-rata Harga</p>
-              <p className="text-base font-bold text-slate-900 dark:text-white truncate">
-                {formatRupiah(avgPrice)}
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Stok Menipis</p>
-              <div className="flex items-baseline gap-1.5">
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{lowStockMenu}</p>
-                <span className="text-[10px] font-semibold text-amber-600/80 dark:text-amber-400/80 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                  1-5 porsi
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Generator & Cetak QR Code Meja Kafe (Self-Order) */}
-        <section>
-          <TableQrGenerator />
-        </section>
-
-        {/* Panel Pesanan Masuk & Verifikasi Kasir (Real-Time) */}
-        <section>
-          <StaffOrdersManager initialOrders={initialOrders} />
-        </section>
-
-        {/* Form Tambah Menu (Hanya Staf) */}
-        <section>
-          <AddMenuForm />
-        </section>
-
-        {/* Manajemen Menu & Stok (Hanya Staf) */}
-        <section className="pt-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Manajemen Data Menu & Stok
-            </h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              Menampilkan {menuItems.length} menu terdaftar
-            </span>
-          </div>
-          <MenuCatalog initialItems={menuItems} />
-        </section>
+        {/* Modul Dashboard Interaktif dengan Pengalih Mode Kasir & Admin Toko */}
+        <DashboardViewSwitcher
+          initialOrders={initialOrders}
+          menuItems={menuItems}
+        />
       </div>
     </main>
   );
