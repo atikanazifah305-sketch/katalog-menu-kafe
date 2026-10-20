@@ -1,4 +1,6 @@
-export type PaymentMethod = 'cash' | 'qris' | 'transfer';
+export type PaymentMethod = 'cash' | 'qris' | 'transfer' | 'debit';
+
+export type OrderType = 'dine_in' | 'take_away';
 
 export type OrderStatus = 
   | 'pending_cash'          // Tunai: Menunggu pelanggan ke meja kasir
@@ -23,6 +25,10 @@ export interface CafeOrder {
   total_price: number;
   payment_method: PaymentMethod;
   status: OrderStatus;
+  order_type?: OrderType;
+  cash_received?: number;
+  change_returned?: number;
+  cashier_name?: string;
   created_at: string;
   updated_at?: string;
 }

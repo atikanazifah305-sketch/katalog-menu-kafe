@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { MenuItem } from '@/types/menu';
 import { CafeOrder } from '@/types/order';
 import AddMenuForm from '@/components/AddMenuForm';
 import MenuCatalog from '@/components/MenuCatalog';
 import StaffOrdersManager from '@/components/StaffOrdersManager';
 import TableQrGenerator from '@/components/TableQrGenerator';
+import CashierPosTerminal from '@/components/CashierPosTerminal';
 import { 
   Receipt, 
   Settings, 
@@ -21,10 +23,19 @@ import {
   Clock,
   Sparkles,
   Info,
-  Layers
+  Layers,
+  ShoppingBag,
+  Printer,
+  Calendar,
+  CreditCard,
+  Banknote,
+  TrendingUp,
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 
 export type DashboardMode = 'kasir' | 'admin' | 'semua';
+export type KasirSubTab = 'pos' | 'antrean' | 'stok' | 'rekap';
 
 interface DashboardViewSwitcherProps {
   initialOrders: CafeOrder[];
@@ -35,7 +46,9 @@ export default function DashboardViewSwitcher({
   initialOrders,
   menuItems,
 }: DashboardViewSwitcherProps) {
+  const router = useRouter();
   const [mode, setMode] = useState<DashboardMode>('kasir');
+  const [kasirSubTab, setKasirSubTab] = useState<KasirSubTab>('pos');
   const [mounted, setMounted] = useState(false);
 
   // Muat preferensi mode staf dari localStorage jika ada
@@ -80,10 +93,37 @@ export default function DashboardViewSwitcher({
     }).format(val);
   };
 
-  // Statistik Pesanan (dari initialOrders)
+  // Statistik Pesanan
   const pendingVerificationOrders = initialOrders.filter((o) => o.status === 'pending_verification').length;
   const pendingCashOrders = initialOrders.filter((o) => o.status === 'pending_cash').length;
   const inProgressOrders = initialOrders.filter((o) => o.status === 'verified_paid').length;
+
+  // Rekap Transaksi Kasir (Lunas / Selesai)
+  const paidOrders = useMemo(() => {
+    return initialOrders.filter((o) => o.status === 'verified_paid' || o.status === 'completed');
+  }, [initialOrders]);
+
+  const totalOmzet = useMemo(() => {
+    return paidOrders.reduce((acc, curr) => acc + curr.total_price, 0);
+  }, [paidOrders]);
+
+  const cashOmzet = useMemo(() => {
+    return paidOrders
+      .filter((o) => o.payment_method === 'cash')
+      .reduce((acc, curr) => acc + curr.total_price, 0);
+  }, [paidOrders]);
+
+  const nonCashOmzet = useMemo(() => {
+    return paidOrders
+      .filter((o) => o.payment_method !== 'cash')
+      .reduce((acc, curr) => acc + curr.total_price, 0);
+  }, [paidOrders]);
+
+  const totalCupsSold = useMemo(() => {
+    return paidOrders.reduce((acc, curr) => {
+      return acc + curr.items.reduce((a, b) => a + b.quantity, 0);
+    }, 0);
+  }, [paidOrders]);
 
   return (
     <div className="space-y-7">
@@ -166,12 +206,12 @@ export default function DashboardViewSwitcher({
           <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           {mode === 'kasir' && (
             <span>
-              <strong>Mode Kasir:</strong> Fokus verifikasi pembayaran meja pelanggan (QRIS / Tunai), pantau racikan barista, dan periksa ketersediaan stok cepat.
+              <strong>Mode Kasir:</strong> Lengkap dengan Mesin POS Order Walk-in, Kalkulator Kembalian Tunai, Cetak Struk Thermal, Verifikasi QRIS Meja, dan Rekap Omzet Harian.
             </span>
           )}
           {mode === 'admin' && (
             <span>
-              <strong>Mode Admin Toko:</strong> Fokus pendaftaran menu baru, penyesuaian harga jual, kontrol stok barang, dan cetak QR Code Meja Kafe.
+              <strong>Mode Admin Toko:</strong> Pendaftaran menu baru, penyesuaian harga jual, kontrol stok barang, dan cetak QR Code Meja Kafe.
             </span>
           )}
           {mode === 'semua' && (
@@ -183,12 +223,85 @@ export default function DashboardViewSwitcher({
       </section>
 
       {/* ======================================================== */}
-      {/* 1. TAMPILAN MODE KASIR                                   */}
+      {/* 1. TAMPILAN MODE KASIR LENGKAP ALA KAFE PROFESIONAL      */}
       {/* ======================================================== */}
       {(mode === 'kasir' || mode === 'semua') && (
         <div className="space-y-6 animate-fade-in">
+          
+          {/* Sub-Navigasi Khusus Kasir (POS, Antrean Meja, Cek Stok, Rekap Omzet) */}
           {mode === 'kasir' && (
-            /* Kartu Statistik Cepat Operasional Kasir */
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setKasirSubTab('pos')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    kasirSubTab === 'pos'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Receipt className="w-4 h-4" />
+                  <span>Mesin Kasir (POS)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setKasirSubTab('antrean')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer relative ${
+                    kasirSubTab === 'antrean'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>Antrean Meja Pelanggan</span>
+                  {pendingVerificationOrders > 0 && (
+                    <span className="px-1.5 py-0.2 text-[10px] bg-red-500 text-white rounded-full animate-pulse font-black">
+                      {pendingVerificationOrders}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setKasirSubTab('rekap')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    kasirSubTab === 'rekap'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Rekap Kasir Hari Ini</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setKasirSubTab('stok')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    kasirSubTab === 'stok'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Box className="w-4 h-4" />
+                  <span>Stok Bar</span>
+                </button>
+              </div>
+
+              {/* Status Ringkas Omzet */}
+              <div className="hidden md:flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 pr-2">
+                <span className="text-slate-400">Total Omzet Kasir:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">
+                  {formatRupiah(totalOmzet)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Kartu Ringkasan Cepat Kasir */}
+          {mode === 'kasir' && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
               <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
                 <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -240,13 +353,169 @@ export default function DashboardViewSwitcher({
             </div>
           )}
 
-          {/* Modul Pesanan Masuk & Verifikasi Kasir */}
-          <section>
-            <StaffOrdersManager initialOrders={initialOrders} />
-          </section>
+          {/* SUB-TAB 1: MESIN KASIR POS (WALK-IN ORDER & BILLING) */}
+          {(kasirSubTab === 'pos' || mode === 'semua') && (
+            <section className="space-y-3">
+              {mode === 'kasir' && (
+                <div className="flex items-center justify-between pb-1">
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-emerald-600" />
+                    <span>Mesin Kasir POS Kafe (Sentuh Menu & Buat Tagihan)</span>
+                  </h3>
+                  <span className="text-xs text-slate-500">
+                    Klik menu untuk menambah pesanan walk-in
+                  </span>
+                </div>
+              )}
+              <CashierPosTerminal
+                menuItems={menuItems}
+                onOrderSuccess={() => router.refresh()}
+              />
+            </section>
+          )}
 
-          {/* Pada Mode Kasir, tampilkan pula katalog stok untuk cek cepat ketersediaan menu */}
-          {mode === 'kasir' && (
+          {/* SUB-TAB 2: ANTREAN MEJA & VERIFIKASI QRIS/CASH */}
+          {(kasirSubTab === 'antrean' || mode === 'semua') && (
+            <section className="space-y-3">
+              {mode === 'kasir' && (
+                <div className="flex items-center justify-between pb-1">
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-amber-600" />
+                    <span>Antrean Pesanan Masuk dari Meja Pelanggan</span>
+                  </h3>
+                  <span className="text-xs text-slate-500">
+                    Pesanan otomatis tersinkron real-time
+                  </span>
+                </div>
+              )}
+              <StaffOrdersManager initialOrders={initialOrders} />
+            </section>
+          )}
+
+          {/* SUB-TAB 3: REKAP KASIR HARI INI */}
+          {mode === 'kasir' && kasirSubTab === 'rekap' && (
+            <section className="space-y-4 animate-fade-in">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-emerald-600" />
+                      <span>Rekap Transaksi Kasir Hari Ini</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Ringkasan pendapatan kasir, transaksi lunas, dan pembagian metode bayar
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => window.print()}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak Laporan Rekap</span>
+                  </button>
+                </div>
+
+                {/* 4 Kartu Rekap Omzet */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                    <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Total Omzet Kasir</p>
+                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+                      {formatRupiah(totalOmzet)}
+                    </p>
+                    <p className="text-[10px] text-emerald-700/80 mt-1">{paidOrders.length} transaksi lunas</p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Pemasukan Tunai (Cash)</p>
+                    <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                      {formatRupiah(cashOmzet)}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-1">Uang fisik di laci kasir</p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
+                    <p className="text-xs font-bold text-cyan-800 dark:text-cyan-300">QRIS / Non-Tunai</p>
+                    <p className="text-2xl font-black text-cyan-600 dark:text-cyan-400 mt-1">
+                      {formatRupiah(nonCashOmzet)}
+                    </p>
+                    <p className="text-[10px] text-cyan-700/80 mt-1">Masuk ke rekening/EDC</p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-xs font-bold text-amber-800 dark:text-amber-300">Total Cup/Porsi Terjual</p>
+                    <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+                      {totalCupsSold} unit
+                    </p>
+                    <p className="text-[10px] text-amber-700/80 mt-1">Dari seluruh transaksi</p>
+                  </div>
+                </div>
+
+                {/* Tabel Riwayat Transaksi Lunas */}
+                <div className="space-y-3 pt-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Daftar Transaksi Kasir Terbaru
+                  </h4>
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                          <th className="p-3">ID & Waktu</th>
+                          <th className="p-3">Meja / Tipe</th>
+                          <th className="p-3">Pelanggan</th>
+                          <th className="p-3">Item Pesanan</th>
+                          <th className="p-3">Metode</th>
+                          <th className="p-3 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {paidOrders.slice(0, 10).map((o) => (
+                          <tr key={o.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                            <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
+                              #{o.id}
+                              <div className="text-[10px] text-slate-400 font-normal">
+                                {new Date(o.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                {o.table_number}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-600 dark:text-slate-300">
+                              {o.customer_name}
+                            </td>
+                            <td className="p-3 text-slate-600 dark:text-slate-300 max-w-xs truncate">
+                              {o.items.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
+                            </td>
+                            <td className="p-3">
+                              <span className="uppercase text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                                {o.payment_method}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right font-black text-slate-900 dark:text-white">
+                              {formatRupiah(o.total_price)}
+                            </td>
+                          </tr>
+                        ))}
+
+                        {paidOrders.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="p-8 text-center text-slate-400">
+                              Belum ada transaksi lunas hari ini
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* SUB-TAB 4: CEK KETERSEDIAAN STOK BAR */}
+          {(kasirSubTab === 'stok' || mode === 'semua') && (
             <section className="pt-2">
               <div className="flex items-center justify-between mb-4">
                 <div>

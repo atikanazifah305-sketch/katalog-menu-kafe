@@ -1,12 +1,16 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { CafeOrder, OrderStatus } from '@/types/order';
 import { createClient } from '@/utils/supabase/server';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+// Gunakan folder data lokal atau fallback ke os.tmpdir() jika filesystem root read-only (misal di Vercel)
+const DATA_DIR = process.env.VERCEL || process.env.NODE_ENV === 'production'
+  ? path.join(os.tmpdir(), 'cafe_data')
+  : path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'orders.json');
 
-// Memory cache untuk performa tinggi
+// Memory cache untuk performa tinggi & fallback jika filesystem read-only
 let memoryOrders: CafeOrder[] = [];
 let isInitialized = false;
 
@@ -18,8 +22,8 @@ function ensureDataFile() {
     if (!fs.existsSync(DATA_FILE)) {
       fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), 'utf-8');
     }
-  } catch (err) {
-    console.error('Error creating data directory/file:', err);
+  } catch {
+    // Abaikan jika read-only, otomatis gunakan in-memory
   }
 }
 
@@ -30,18 +34,18 @@ function loadOrdersFromFile(): CafeOrder[] {
       const content = fs.readFileSync(DATA_FILE, 'utf-8');
       return JSON.parse(content || '[]');
     }
-  } catch (err) {
-    console.error('Error reading orders from file:', err);
+  } catch {
+    // Abaikan jika gagal baca file
   }
-  return [];
+  return memoryOrders;
 }
 
 function saveOrdersToFile(orders: CafeOrder[]) {
   try {
     ensureDataFile();
     fs.writeFileSync(DATA_FILE, JSON.stringify(orders, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing orders to file:', err);
+  } catch {
+    // Abaikan jika read-only, data tetap ada di memory
   }
 }
 

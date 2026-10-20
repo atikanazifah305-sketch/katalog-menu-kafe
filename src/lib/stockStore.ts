@@ -72,6 +72,18 @@ export function setItemStock(id: string, stock: number): void {
 }
 
 /**
+ * Mengurangi stok menu sejumlah quantity tertentu
+ */
+export function reduceItemStock(id: string, quantity: number): number {
+  const stocks = loadStocksFromFile();
+  const current = stocks[id] !== undefined ? stocks[id] : 20;
+  const next = Math.max(0, current - quantity);
+  stocks[id] = next;
+  saveStocksToFile(stocks);
+  return next;
+}
+
+/**
  * Menghapus stok menu berdasarkan ID
  */
 export function deleteItemStock(id: string): void {

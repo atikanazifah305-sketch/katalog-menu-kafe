@@ -9,7 +9,7 @@ import {
   getOrderById, 
   updateOrderStatus 
 } from '@/lib/ordersStore';
-import { setItemStock, getItemStock, deleteItemStock } from '@/lib/stockStore';
+import { setItemStock, getItemStock, deleteItemStock, reduceItemStock } from '@/lib/stockStore';
 
 export interface ActionResult<T = unknown> {
   success: boolean;
@@ -359,5 +359,54 @@ export async function checkOrderStatusAction(orderId: string): Promise<{ status:
     return { status: order ? order.status : null };
   } catch {
     return { status: null };
+  }
+}
+
+/**
+ * Kasir memproses transaksi langsung di meja kasir (Walk-in POS Order)
+ * - Otomatis status 'verified_paid' (Lunas)
+ * - Mengurangi stok barang
+ * - Revalidasi halaman
+ */
+export async function createPosOrderAction(order: CafeOrder): Promise<{ success: boolean; order?: CafeOrder; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    // 1. Simpan pesanan kasir
+    const saved = await saveOrder({
+      ...order,
+      status: 'verified_paid', // Langsung lunas karena dibayar di kasir
+      updated_at: new Date().toISOString(),
+    });
+
+    // 2. Kurangi stok masing-masing menu yang dibeli
+    for (const item of order.items) {
+      if (item.menuItemId) {
+        const nextStock = reduceItemStock(item.menuItemId, item.quantity);
+
+        // Update ke Supabase jika kolom stock tersedia
+        try {
+          await supabase
+            .from('menu_items')
+            .update({
+              stock: nextStock,
+              is_ready: nextStock > 0,
+            })
+            .eq('id', item.menuItemId);
+        } catch {
+          // Fallback senyap jika Supabase RLS atau schema terbatas
+        }
+      }
+    }
+
+    revalidatePath('/dashboard');
+    revalidatePath('/');
+    return { success: true, order: saved };
+  } catch (err: unknown) {
+    console.error('Gagal create POS order:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Gagal memproses transaksi kasir.',
+    };
   }
 }
